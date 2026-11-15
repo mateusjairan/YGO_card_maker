@@ -86,6 +86,30 @@ A diferença entre `/health` e a listagem é **< 1 ms**: com 500 cartas, a consu
 5. **Cache dos assets da carta** já feito no nginx (`expires 30d` em `/media`), e `immutable` nos
    bundles do Vite.
 
+## Frontend (fluidez do editor)
+
+A carta usa `mix-blend-mode` e gradientes grandes — repintar duas cópias dela a cada tecla era o
+que deixava o editor "travado". O que mudou:
+
+- **`useDeferredValue`** na prévia: o input responde na hora e a carta atualiza no frame seguinte.
+- **`memo`** no componente da carta e **palco de exportação sob demanda** (antes ele existia
+  sempre, dobrando a pintura).
+- **Holográfico só no hover** (`animation` desligada fora de `:hover`) — antes as animações
+  rodavam continuamente em todas as cartas da galeria.
+- **`contain: layout paint style`** na carta e remoção do `backdrop-filter` do cabeçalho fixo.
+
+Medição com o Chrome DevTools Protocol (`PerformanceObserver` de `longtask`) digitando 42
+caracteres no nome da carta, com a prévia ao vivo:
+
+| Métrica | Resultado |
+| --- | --- |
+| Long tasks (> 50 ms) durante a digitação | **0** |
+| Maior long task | — |
+| Prévia atualizada | sim (42/42 caracteres refletidos na carta) |
+
+Reprodução: `.tmp/perf.mjs` (script de diagnóstico local, fora do repositório) ou DevTools →
+Performance → gravar enquanto digita; o critério é nenhuma tarefa acima de 50 ms.
+
 ## Como reproduzir
 
 ```bash
