@@ -1,0 +1,93 @@
+import type { CardDraft } from '../types'
+import { levelInfo, serialNumber, typeLine } from '../lib/labels'
+import { AttributeIcon } from './AttributeIcon'
+
+interface YgoCardProps {
+  card: CardDraft & { id?: string }
+}
+
+/**
+ * Renderizador da carta. O markup e as classes espelham
+ * src/app/templates/_card.html (página de compartilhamento no servidor).
+ */
+export function YgoCard({ card }: YgoCardProps) {
+  const attrKey = card.kind === 'monster' ? (card.attribute ?? 'light') : card.kind
+  const level = levelInfo(card)
+  const showStats = card.kind === 'monster'
+  const nameClass =
+    card.name.length > 30 ? 'is-xs' : card.name.length > 22 ? 'is-sm' : ''
+
+  return (
+    <article
+      className="ygo-card"
+      data-kind={card.kind}
+      data-attribute={card.kind === 'monster' ? attrKey : undefined}
+      data-holo={card.holo ? 'on' : 'off'}
+    >
+      <div className="ygo-card__surface">
+        <header className="ygo-card__header">
+          <div className="ygo-card__namebar">
+            <h1 className={`ygo-card__name ${nameClass}`.trim()}>{card.name || 'Carta sem nome'}</h1>
+          </div>
+          <div className="ygo-card__attribute">
+            <AttributeIcon name={attrKey} />
+          </div>
+        </header>
+
+        {level.visible &&
+          (level.link ? (
+            <div className="ygo-card__levelrow">
+              <span className="ygo-card__linkbadge">LINK-{level.count}</span>
+            </div>
+          ) : (
+            <div className="ygo-card__levelrow" data-rank={String(level.rank)}>
+              {Array.from({ length: level.count }, (_, index) => (
+                <span key={index} className="ygo-card__star" />
+              ))}
+            </div>
+          ))}
+
+        <div className="ygo-card__art">
+          {card.image_url ? (
+            <img className="ygo-card__artimg" src={card.image_url} alt="" draggable={false} />
+          ) : (
+            <div className="ygo-card__artplaceholder">sem arte</div>
+          )}
+          {card.image_url && (
+            <>
+              <div className="ygo-card__holo" />
+              <div className="ygo-card__sparkle" />
+            </>
+          )}
+        </div>
+
+        <div className="ygo-card__infobox">
+          <div className="ygo-card__type">
+            <span className="ygo-card__bracket">[</span> {typeLine(card)}{' '}
+            <span className="ygo-card__bracket">]</span>
+          </div>
+          <p className="ygo-card__desc">
+            {card.description || 'Escreva aqui o efeito, a história ou os detalhes da sua carta.'}
+          </p>
+          {showStats && (
+            <div className="ygo-card__stats">
+              <span>
+                ATK/<b>{card.atk ?? '?'}</b>
+              </span>
+              {card.defense !== null && (
+                <span>
+                  DEF/<b>{card.defense}</b>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <footer className="ygo-card__footer">
+          <span>YGO Card Maker</span>
+          <span className="ygo-card__serial">{serialNumber(card.id)}</span>
+        </footer>
+      </div>
+    </article>
+  )
+}
