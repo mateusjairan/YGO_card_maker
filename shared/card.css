@@ -299,10 +299,13 @@
 }
 
 /* Raridades: foil pointer-driven ----------------------------------------------
-   O motor imita as cartas raras de verdade: o ponteiro desloca o gradiente via
-   `background-position` e o blend (color-dodge/overlay) faz o resto. Cada
-   raridade tem o SEU padrão — rainbow diagonal, escovado, relevo, estrelas —
-   não é o mesmo efeito recolorido. */
+   Esquema de variáveis igual ao das cartas raras reais (pokemon-cards-css /
+   ygo-ocg-secret-rare):
+     --pointer-x/y       posição do ponteiro (0–100%) — usada no glare
+     --background-x/y    posição comprimida (37–63% / 33–67%) — usada no parallax
+     --pointer-from-*    normalizados (centro, topo, esquerda)
+     --card-opacity      0 no repouso, 1 com o ponteiro sobre a carta
+   A camada de foil tem ::before (scanlines) e ::after (queda radial metálica). */
 
 .ygo-card {
   --px: 0px;
@@ -310,6 +313,16 @@
   --o: 0.55;
   --rx: 0deg;
   --ry: 0deg;
+
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --background-x: 50%;
+  --background-y: 50%;
+  --pointer-from-center: 0;
+  --pointer-from-top: 0.5;
+  --pointer-from-left: 0.5;
+  --card-opacity: 0.55;
+
   transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -318,109 +331,149 @@
   transition: transform 0.1s linear;
 }
 
-/* camadas (card inteiro) ----------------------------------------------------- */
-.ygo-card__foil,
-.ygo-card__glare {
-  position: absolute;
-  pointer-events: none;
-}
-
-/* o foil vive SOBRE a arte e SOB o texto (como nas cartas reais) */
+/* camada de foil: parallax + scanlines + queda radial ------------------------ */
 .ygo-card__foil {
+  position: absolute;
   inset: 0;
   z-index: 6;
   border-radius: 2px;
-  opacity: calc(var(--o) * 0.55);
-  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: calc(var(--card-opacity) * 0.55);
+  background-size: 400% 400%;
+  background-position: calc(((50% - var(--background-x)) * var(--pwx, 2.6)) + 50%)
+    calc(((50% - var(--background-y)) * var(--pwy, 3.5)) + 50%);
+  mix-blend-mode: color-dodge;
+  filter: contrast(1.2) saturate(1.15);
   transition: opacity 0.35s ease;
 }
 
-/* verniz especular na carta inteira, bem discreto */
-.ygo-card__glare {
-  inset: 9px;
-  border-radius: 10px;
-  z-index: 7;
-  background: radial-gradient(
-    circle 38% at calc(50% + var(--px)) calc(50% + var(--py)),
-    rgba(255, 255, 255, 0.5) 0%,
-    rgba(255, 255, 255, 0.12) 32%,
-    transparent 62%
+.ygo-card__foil::before,
+.ygo-card__foil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* scanlines: dão a textura de "foil impresso" */
+.ygo-card__foil::before {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.75) 0 1px,
+    rgba(255, 255, 255, 0.4) 1px 2px
   );
-  mix-blend-mode: screen;
-  opacity: calc(var(--o) * 0.3);
+  background-size: 3px 100%;
+  mix-blend-mode: overlay;
+  opacity: var(--scan, 0.35);
 }
 
-@supports (mix-blend-mode: plus-lighter) {
-  .ygo-card__glare {
-    mix-blend-mode: plus-lighter;
-  }
+/* queda radial: centro claro, bordas escuras (efeito metálico) */
+.ygo-card__foil::after {
+  background: radial-gradient(
+    farthest-corner circle at var(--pointer-x) var(--pointer-y),
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(120, 120, 120, 0.1) 42%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
+  mix-blend-mode: luminosity;
+  filter: brightness(0.62) contrast(3);
+  opacity: calc(var(--card-opacity) * 0.65);
 }
 
-/* comum: papel, sem foil ----------------------------------------------------- */
+/* verniz sobre a carta inteira ---------------------------------------------- */
+.ygo-card__glare {
+  position: absolute;
+  inset: 8px;
+  z-index: 7;
+  border-radius: 11px;
+  pointer-events: none;
+  background: radial-gradient(
+    farthest-corner circle at var(--pointer-x) var(--pointer-y),
+    rgba(255, 255, 255, 0.85) 4%,
+    rgba(140, 140, 140, 0.25) 55%,
+    rgba(0, 0, 0, 0.35) 110%
+  );
+  mix-blend-mode: overlay;
+  filter: brightness(0.9) contrast(1.4);
+  opacity: calc(var(--card-opacity) * 0.55);
+}
+
+/* comum --------------------------------------------------------------------- */
 .ygo-card[data-rarity='common'] .ygo-card__foil,
 .ygo-card[data-rarity='common'] .ygo-card__glare {
   opacity: 0;
 }
 
-/* rara: escovado vertical prateado ------------------------------------------ */
+/* rara: holo prateado com scanlines ---------------------------------------- */
+.ygo-card[data-rarity='rare'] {
+  --pwx: 1.8;
+  --pwy: 2.4;
+}
 .ygo-card[data-rarity='rare'] .ygo-card__foil {
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.55) 0 1px,
-      rgba(255, 255, 255, 0) 1px 4px
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0) 15%,
-      rgba(255, 255, 255, 0.8) 48%,
-      rgba(255, 255, 255, 0) 82%
-    );
-  background-size: 100% 100%, 55% 240%;
-  background-position: 0 0, calc(50% + var(--px) * 1.4) calc(50% + var(--py) * 1.4);
-  mix-blend-mode: soft-light;
-  filter: contrast(1.3);
-}
-
-/* super rara: varredura diagonal fria --------------------------------------- */
-.ygo-card[data-rarity='super'] .ygo-card__foil {
+  --scan: 0.45;
   background-image: linear-gradient(
-    115deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.9) 46%,
-    rgba(168, 226, 255, 0.95) 52%,
-    transparent 70%
+    110deg,
+    #ffffff 0%,
+    #c7d0da 18%,
+    #7c8794 34%,
+    #eef4fa 50%,
+    #9aa5b2 66%,
+    #ffffff 82%,
+    #b6c0cc 100%
   );
-  background-size: 240% 240%;
-  background-position: calc(50% + var(--px) * 2.4) calc(50% + var(--py) * 2.4);
-  mix-blend-mode: color-dodge;
-  filter: contrast(1.25) brightness(1.05);
+  mix-blend-mode: soft-light;
+  filter: brightness(1.15) contrast(1.25) saturate(0.5);
 }
 
-/* ultra rara: ouro quente com reflexo --------------------------------------- */
+/* super rara: holo azulado, rainbow frio ----------------------------------- */
+.ygo-card[data-rarity='super'] {
+  --pwx: 2.2;
+  --pwy: 3;
+}
+.ygo-card[data-rarity='super'] .ygo-card__foil {
+  --scan: 0.3;
+  background-image: repeating-linear-gradient(
+    110deg,
+    #8fd8ff 0%,
+    #4f9fe8 12%,
+    #b9ecff 24%,
+    #ffffff 34%,
+    #7fc4ff 46%,
+    #3f7fd0 58%,
+    #d6f3ff 70%,
+    #8fd8ff 82%
+  );
+  filter: brightness(1.1) contrast(1.2) saturate(1.35);
+}
+
+/* ultra rara: holo dourado quente ------------------------------------------ */
+.ygo-card[data-rarity='ultra'] {
+  --pwx: 2.6;
+  --pwy: 3.4;
+}
 .ygo-card[data-rarity='ultra'] .ygo-card__foil {
-  background-image:
-    repeating-linear-gradient(
-      30deg,
-      #8a5a00 0 3%,
-      #ffb703 6%,
-      #fff3c4 9%,
-      #ffb703 12%,
-      #8a5a00 17%
-    ),
-    radial-gradient(
-      circle at calc(50% + var(--px)) calc(50% + var(--py)),
-      rgba(255, 255, 255, 0.95),
-      transparent 55%
-    );
-  background-size: 320% 320%, 100% 100%;
-  background-position: calc(50% + var(--px) * -2) calc(50% + var(--py) * -2), 0 0;
-  background-blend-mode: color-dodge, screen;
-  filter: contrast(1.2) saturate(1.35);
+  --scan: 0.28;
+  background-image: repeating-linear-gradient(
+    110deg,
+    #ffb703 0%,
+    #ffe9a8 10%,
+    #ff8c00 22%,
+    #fff4cf 34%,
+    #e8a33a 46%,
+    #ffd27a 58%,
+    #b06a00 70%,
+    #ffe9a8 82%
+  );
+  filter: brightness(1.12) contrast(1.2) saturate(1.5);
 }
 
-/* secret rara: rainbow diagonal + grid cruzado + glitter --------------------- */
+/* secret rara: rainbow diagonal 30° + grid cruzado (YGO) -------------------- */
+.ygo-card[data-rarity='secret'] {
+  --pwx: 2.6;
+  --pwy: 3.5;
+}
 .ygo-card[data-rarity='secret'] .ygo-card__foil {
+  --scan: 0.16;
   background-image:
     repeating-linear-gradient(
       30deg,
@@ -434,102 +487,124 @@
       #ffff00 10.8%,
       #ff7800 12.6%
     ),
-    linear-gradient(transparent 40%, #ffffff 48.5%, #ffffff 51.5%, transparent 60%),
-    linear-gradient(90deg, transparent 49%, #ffffff 58%, #ffffff 62%, transparent 71%),
-    linear-gradient(90deg, transparent 54%, #ffffff 64%, transparent 73%);
-  background-size: 320% 320%, 100% 7.5em, 7.6em 100%, 7.5em 100%;
+    linear-gradient(transparent 40%, rgba(255, 255, 255, 0.45) 48.5%, rgba(255, 255, 255, 0.45) 51.5%, transparent 60%),
+    linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.4) 58%, rgba(255, 255, 255, 0.4) 62%, transparent 71%),
+    linear-gradient(90deg, transparent 54%, rgba(255, 255, 255, 0.35) 64%, transparent 73%);
+  background-size: 400% 400%, 100% 7.5em, 7.6em 100%, 7.5em 100%;
   background-position:
-    calc(50% + var(--px) * -2) calc(50% + var(--py) * -2),
+    calc(((50% - var(--background-x)) * 2.6) + 50%) calc(((50% - var(--background-y)) * 3.5) + 50%),
     calc(var(--px) * -0.25) calc(var(--py) * -0.25),
     calc(var(--px) * -0.5) 0,
     calc(var(--px) * -0.3) 0;
   background-blend-mode: color, color-dodge, color-dodge, color-dodge;
-  filter: contrast(1.25) saturate(1.25);
+  filter: brightness(1.05) contrast(1.25) saturate(1.3);
 }
 
-/* prismática: bandas verticais finas ---------------------------------------- */
+/* prismática: bandas finas 82° (cosmos) ------------------------------------- */
+.ygo-card[data-rarity='prismatic'] {
+  --pwx: 2.4;
+  --pwy: 3.2;
+}
 .ygo-card[data-rarity='prismatic'] .ygo-card__foil {
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 40, 90, 0.8) 0 1.2%,
-      rgba(255, 190, 0, 0.8) 2.4%,
-      rgba(60, 255, 140, 0.8) 3.6%,
-      rgba(0, 200, 255, 0.8) 4.8%,
-      rgba(150, 60, 255, 0.8) 6%
-    ),
-    radial-gradient(
-      circle at calc(50% + var(--px)) calc(50% + var(--py)),
-      rgba(255, 255, 255, 0.95),
-      transparent 40%
-    );
-  background-size: 180% 100%, 100% 100%;
-  background-position: calc(50% + var(--px) * 1.6) 0, 0 0;
-  background-blend-mode: color-dodge, screen;
-  filter: contrast(1.35) saturate(1.5);
+  --scan: 0.24;
+  --space: 4.5%;
+  background-image: repeating-linear-gradient(
+    82deg,
+    hsl(53, 85%, 68%) calc(var(--space) * 1),
+    hsl(93, 76%, 58%) calc(var(--space) * 2),
+    hsl(176, 74%, 57%) calc(var(--space) * 3),
+    hsl(228, 79%, 63%) calc(var(--space) * 4),
+    hsl(283, 80%, 63%) calc(var(--space) * 5),
+    hsl(326, 79%, 59%) calc(var(--space) * 6),
+    hsl(326, 79%, 59%) calc(var(--space) * 7),
+    hsl(283, 80%, 63%) calc(var(--space) * 8),
+    hsl(228, 79%, 63%) calc(var(--space) * 9),
+    hsl(176, 74%, 57%) calc(var(--space) * 10),
+    hsl(93, 76%, 58%) calc(var(--space) * 11),
+    hsl(53, 85%, 68%) calc(var(--space) * 12)
+  );
+  background-size: 400% 900%;
+  filter: brightness(1.15) contrast(1.35) saturate(1.5);
 }
 
-/* ultimate: relevo, sem arco-íris ------------------------------------------- */
+/* ultimate: relevo metálico, sem cor --------------------------------------- */
+.ygo-card[data-rarity='ultimate'] {
+  --pwx: 1.4;
+  --pwy: 1.8;
+}
 .ygo-card[data-rarity='ultimate'] .ygo-card__foil {
+  --scan: 0.7;
   background-image:
     repeating-linear-gradient(
       45deg,
-      rgba(255, 255, 255, 0.22) 0 2px,
-      rgba(0, 0, 0, 0.4) 2px 4px
+      rgba(255, 255, 255, 0.5) 0 2px,
+      rgba(0, 0, 0, 0.55) 2px 4px
     ),
-    radial-gradient(
-      circle 40% at calc(50% + var(--px)) calc(50% + var(--py)),
-      rgba(255, 255, 255, 0.55),
-      transparent 62%
-    );
-  background-size: 5px 5px, 100% 100%;
+    linear-gradient(160deg, #6b6b6b, #ffffff 30%, #8a8a8a 55%, #ffffff 78%, #5a5a5a);
+  background-size: 6px 6px, 300% 300%;
   mix-blend-mode: overlay;
-  filter: contrast(1.45);
+  filter: brightness(1.1) contrast(1.6) saturate(0);
 }
 
-/* ghost: arco-íris radial grande + névoa ------------------------------------ */
+/* ghost: cosmos radial com matiz girando ----------------------------------- */
+.ygo-card[data-rarity='ghost'] {
+  --pwx: 2.2;
+  --pwy: 2.8;
+}
 .ygo-card[data-rarity='ghost'] .ygo-card__foil {
+  --scan: 0.12;
   background-image:
-    conic-gradient(
-      from calc(var(--px) * 0.3deg) at calc(50% + var(--px)) calc(50% + var(--py)),
-      rgba(255, 120, 200, 0.85),
-      rgba(120, 200, 255, 0.85),
-      rgba(120, 255, 210, 0.85),
-      rgba(255, 240, 150, 0.85),
-      rgba(255, 120, 200, 0.85)
-    ),
     radial-gradient(
-      circle 62% at calc(50% + var(--px)) calc(50% + var(--py)),
-      rgba(255, 255, 255, 0.95),
-      transparent 72%
+      farthest-corner circle at var(--pointer-x) var(--pointer-y),
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(150, 200, 255, 0.45) 35%,
+      rgba(40, 30, 70, 0.9) 100%
+    ),
+    conic-gradient(
+      from calc(var(--px) * 0.3deg) at var(--pointer-x) var(--pointer-y),
+      rgba(255, 120, 200, 0.9),
+      rgba(120, 200, 255, 0.9),
+      rgba(120, 255, 210, 0.9),
+      rgba(255, 240, 150, 0.9),
+      rgba(255, 120, 200, 0.9)
     );
-  background-size: 140% 140%, 100% 100%;
+  background-size: 100% 100%, 160% 160%;
   background-position: 0 0, 0 0;
   background-blend-mode: color-dodge, screen;
-  opacity: calc(var(--o) * 0.5);
-  filter: saturate(0.8) brightness(1.05);
+  filter: brightness(1.05) contrast(1.1) saturate(0.7);
 }
 
-/* starlight: campo de estrelas + glitter + varredura ------------------------ */
+/* starlight: campo de estrelas + rainbow 82° -------------------------------- */
+.ygo-card[data-rarity='starlight'] {
+  --pwx: 2.8;
+  --pwy: 3.6;
+}
 .ygo-card[data-rarity='starlight'] .ygo-card__foil {
+  --scan: 0.2;
   background-image:
     radial-gradient(1.6px 1.6px at 12% 16%, #ffffff, transparent 100%),
     radial-gradient(1.4px 1.4px at 30% 34%, #dff4ff, transparent 100%),
-    radial-gradient(2px 2px at 47% 12%, #ffffff, transparent 100%),
+    radial-gradient(2.2px 2.2px at 47% 12%, #ffffff, transparent 100%),
     radial-gradient(1.3px 1.3px at 66% 46%, #fff6d0, transparent 100%),
     radial-gradient(1.8px 1.8px at 84% 24%, #ffffff, transparent 100%),
     radial-gradient(1.2px 1.2px at 22% 72%, #ffffff, transparent 100%),
     radial-gradient(1.5px 1.5px at 58% 82%, #ffffff, transparent 100%),
     radial-gradient(1.3px 1.3px at 76% 64%, #e8f6ff, transparent 100%),
-    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.8) 50%, transparent 62%);
+    repeating-linear-gradient(
+      82deg,
+      rgba(255, 236, 150, 0.65) 0 3%,
+      rgba(160, 255, 210, 0.65) 3% 6%,
+      rgba(150, 210, 255, 0.65) 6% 9%,
+      rgba(220, 170, 255, 0.65) 9% 12%
+    );
   background-size:
     100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%,
-    100% 100%, 260% 260%;
+    100% 100%, 400% 400%;
   background-position:
     0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0,
-    calc(50% + var(--px) * 2.6) calc(50% + var(--py) * 2.6);
-  background-blend-mode: screen;
-  filter: contrast(1.25);
+    calc(((50% - var(--background-x)) * 2.8) + 50%) calc(((50% - var(--background-y)) * 3.6) + 50%);
+  background-blend-mode: screen, screen, screen, screen, screen, screen, screen, screen, color-dodge;
+  filter: brightness(1.15) contrast(1.3) saturate(1.35);
 }
 
 /* brilho da arte (todos os foil) -------------------------------------------- */
@@ -538,11 +613,11 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  opacity: calc(var(--o) * 0.6);
+  opacity: calc(var(--card-opacity) * 0.5);
   mix-blend-mode: color-dodge;
   background: radial-gradient(
     circle 60% at calc(50% + var(--px) * 0.7) calc(50% + var(--py) * 0.7),
-    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.5),
     transparent 72%
   );
 }
@@ -564,7 +639,7 @@
 }
 
 .ygo-card[data-rarity='ultimate'] .ygo-card__grain {
-  opacity: calc(var(--o) * 0.7);
+  opacity: calc(var(--card-opacity) * 0.7);
 }
 
 .ygo-card__stars {
@@ -589,7 +664,7 @@
 }
 
 .ygo-card[data-rarity='starlight'] .ygo-card__stars {
-  opacity: calc(var(--o) * 0.95);
+  opacity: calc(var(--card-opacity) * 0.95);
 }
 
 .ygo-card__sparkle {
@@ -612,16 +687,16 @@
 .ygo-card[data-rarity='secret'] .ygo-card__sparkle,
 .ygo-card[data-rarity='prismatic'] .ygo-card__sparkle,
 .ygo-card[data-rarity='ghost'] .ygo-card__sparkle {
-  opacity: calc(var(--o) * 0.5);
+  opacity: calc(var(--card-opacity) * 0.5);
 }
 
 .ygo-card[data-rarity='starlight'] .ygo-card__sparkle {
-  opacity: calc(var(--o) * 0.5);
+  opacity: calc(var(--card-opacity) * 0.8);
 }
 
-/* movimento ambiente por raridade (transform/opacity: não briga com o ponteiro) */
+/* movimento ambiente por raridade ------------------------------------------- */
 .ygo-card__foil {
-  transform: scale(1.08);
+  transform: scale(1.04);
 }
 
 @media (hover: hover) {
@@ -667,73 +742,73 @@
 @keyframes ygo-foil-y {
   0%,
   100% {
-    transform: scale(1.08) translateY(-1.8%);
+    transform: scale(1.04) translateY(-1.6%);
   }
   50% {
-    transform: scale(1.08) translateY(1.8%);
+    transform: scale(1.04) translateY(1.6%);
   }
 }
 
 @keyframes ygo-foil-diag {
   0%,
   100% {
-    transform: scale(1.08) translate(-2%, -1.4%);
+    transform: scale(1.04) translate(-1.8%, -1.2%);
   }
   50% {
-    transform: scale(1.08) translate(2%, 1.4%);
+    transform: scale(1.04) translate(1.8%, 1.2%);
   }
 }
 
 @keyframes ygo-foil-x {
   0%,
   100% {
-    transform: scale(1.08) translateX(-2.2%);
+    transform: scale(1.04) translateX(-2%);
   }
   50% {
-    transform: scale(1.08) translateX(2.2%);
+    transform: scale(1.04) translateX(2%);
   }
 }
 
 @keyframes ygo-foil-warm {
   0%,
   100% {
-    transform: scale(1.06);
-    filter: contrast(1.2) saturate(1.35) brightness(1);
+    transform: scale(1.03);
+    filter: brightness(1.1) contrast(1.2) saturate(1.5);
   }
   50% {
-    transform: scale(1.1);
-    filter: contrast(1.2) saturate(1.5) brightness(1.3);
+    transform: scale(1.07);
+    filter: brightness(1.35) contrast(1.2) saturate(1.7);
   }
 }
 
 @keyframes ygo-foil-emboss {
   0%,
   100% {
-    transform: scale(1.06) translateY(-1%);
-    filter: contrast(1.45) brightness(1);
+    transform: scale(1.03) translateY(-1%);
+    filter: brightness(1.1) contrast(1.6) saturate(0);
   }
   50% {
-    transform: scale(1.06) translateY(1%);
-    filter: contrast(1.45) brightness(1.4);
+    transform: scale(1.03) translateY(1%);
+    filter: brightness(1.45) contrast(1.6) saturate(0);
   }
 }
 
 @keyframes ygo-foil-ghost {
   0% {
-    filter: hue-rotate(0deg) saturate(0.8) brightness(1.05);
+    filter: hue-rotate(0deg) brightness(1.05) contrast(1.1) saturate(0.7);
   }
   100% {
-    filter: hue-rotate(360deg) saturate(0.8) brightness(1.05);
+    filter: hue-rotate(360deg) brightness(1.05) contrast(1.1) saturate(0.7);
   }
 }
 
 @keyframes ygo-foil-twinkle {
   0%,
   100% {
-    opacity: calc(var(--o) * 0.4);
+    opacity: calc(var(--card-opacity) * 0.55);
   }
   50% {
-    opacity: calc(var(--o) * 0.85);
+    opacity: calc(var(--card-opacity) * 0.95);
   }
 }
 
@@ -800,7 +875,6 @@
   background: linear-gradient(150deg, #fff0c4, #c99a3f 45%, #f7e2ab 70%, #8a6a26);
 }
 
-/* anima só no hover (custo de pintura) -------------------------------------- */
 @media (hover: hover) {
   .ygo-card:hover .ygo-card__holo {
     animation: ygo-holo-drift 6s ease-in-out infinite;

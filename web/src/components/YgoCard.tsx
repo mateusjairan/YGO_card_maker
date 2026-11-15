@@ -7,19 +7,41 @@ interface YgoCardProps {
   card: CardDraft & { id?: string }
 }
 
+interface PointerState {
+  pointerX: number
+  pointerY: number
+  backgroundX: number
+  backgroundY: number
+  opacity: number
+}
+
+const REST: PointerState = {
+  pointerX: 50,
+  pointerY: 50,
+  backgroundX: 50,
+  backgroundY: 50,
+  opacity: 0.55,
+}
+
+/** Comprime 0–100 (ponteiro) para 37–63 / 33–67 (parallax), como no cards-css. */
+function adjust(value: number, inMin: number, inMax: number, outMin: number, outMax: number) {
+  return outMin + ((value - inMin) / (inMax - inMin)) * (outMax - outMin)
+}
+
+const lerp = (from: number, to: number, ratio: number) => from + (to - from) * ratio
+
 /**
  * Renderizador da carta. O markup e as classes espelham
  * src/app/templates/_card.html (página de compartilhamento no servidor).
  *
- * O foil é pointer-driven: o ponteiro escreve `--px`, `--py`, `--o`, `--rx` e
- * `--ry` na própria carta e o CSS de cada raridade usa esses valores em
- * `background-position`/`transform`.
+ * O foil é pointer-driven: `--pointer-x/y` movem o glare, `--background-x/y`
+ * (comprimidos) dão o parallax do padrão e `--card-opacity` acende as camadas.
  */
 export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
   const cardRef = useRef<HTMLElement>(null)
   const frame = useRef(0)
-  const target = useRef({ x: 0, y: 0, o: 0.55 })
-  const current = useRef({ x: 0, y: 0, o: 0.55 })
+  const target = useRef<PointerState>({ ...REST })
+  const current = useRef<PointerState>({ ...REST })
 
   const attrKey = card.kind === 'monster' ? (card.attribute ?? 'light') : card.kind
   const level = levelInfo(card)
@@ -32,20 +54,33 @@ export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
     const now = current.current
     const goal = target.current
 
-    now.x += (goal.x - now.x) * 0.16
-    now.y += (goal.y - now.y) * 0.16
-    now.o += (goal.o - now.o) * 0.12
+    now.pointerX = lerp(now.pointerX, goal.pointerX, 0.18)
+    now.pointerY = lerp(now.pointerY, goal.pointerY, 0.18)
+    now.backgroundX = lerp(now.backgroundX, goal.backgroundX, 0.16)
+    now.backgroundY = lerp(now.backgroundY, goal.backgroundY, 0.16)
+    now.opacity = lerp(now.opacity, goal.opacity, 0.12)
 
-    node.style.setProperty('--px', `${now.x.toFixed(1)}px`)
-    node.style.setProperty('--py', `${now.y.toFixed(1)}px`)
-    node.style.setProperty('--o', now.o.toFixed(2))
-    node.style.setProperty('--rx', `${(-now.y / 30).toFixed(2)}deg`)
-    node.style.setProperty('--ry', `${(now.x / 30).toFixed(2)}deg`)
+    const offsetX = (now.pointerX - 50) * 4.2
+    const offsetY = (now.pointerY - 50) * 6.12
+    const fromCenter = Math.min(1, Math.hypot(now.pointerX - 50, now.pointerY - 50) / 50)
+
+    node.style.setProperty('--pointer-x', `${now.pointerX.toFixed(2)}%`)
+    node.style.setProperty('--pointer-y', `${now.pointerY.toFixed(2)}%`)
+    node.style.setProperty('--background-x', `${now.backgroundX.toFixed(2)}%`)
+    node.style.setProperty('--background-y', `${now.backgroundY.toFixed(2)}%`)
+    node.style.setProperty('--pointer-from-center', fromCenter.toFixed(3))
+    node.style.setProperty('--pointer-from-top', (now.pointerY / 100).toFixed(3))
+    node.style.setProperty('--pointer-from-left', (now.pointerX / 100).toFixed(3))
+    node.style.setProperty('--card-opacity', now.opacity.toFixed(2))
+    node.style.setProperty('--px', `${offsetX.toFixed(1)}px`)
+    node.style.setProperty('--py', `${offsetY.toFixed(1)}px`)
+    node.style.setProperty('--rx', `${(-offsetY / 30).toFixed(2)}deg`)
+    node.style.setProperty('--ry', `${(offsetX / 30).toFixed(2)}deg`)
 
     const settled =
-      Math.abs(goal.x - now.x) < 0.4 &&
-      Math.abs(goal.y - now.y) < 0.4 &&
-      Math.abs(goal.o - now.o) < 0.01
+      Math.abs(goal.pointerX - now.pointerX) < 0.15 &&
+      Math.abs(goal.pointerY - now.pointerY) < 0.15 &&
+      Math.abs(goal.opacity - now.opacity) < 0.005
 
     frame.current = settled ? 0 : requestAnimationFrame(animate)
   }
@@ -58,16 +93,22 @@ export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
     const node = cardRef.current
     if (!node) return
     const rect = node.getBoundingClientRect()
-    const x = event.clientX - rect.left - rect.width / 2
-    const y = event.clientY - rect.top - rect.height / 2
-    const distance = Math.hypot(x, y) / Math.hypot(rect.width / 2, rect.height / 2)
-    target.current = { x, y, o: Math.max(0.25, Math.min(1, 1.1 - distance * 0.55)) }
+    const pointerX = Math.min(100, Math.max(0, ((event.clientX - rect.left) / rect.width) * 100))
+    const pointerY = Math.min(100, Math.max(0, ((event.clientY - rect.top) / rect.height) * 100))
+
+    target.current = {
+      pointerX,
+      pointerY,
+      backgroundX: adjust(pointerX, 0, 100, 37, 63),
+      backgroundY: adjust(pointerY, 0, 100, 33, 67),
+      opacity: 1,
+    }
     node.classList.add('is-tilting')
     start()
   }
 
   function handlePointerLeave() {
-    target.current = { x: 0, y: 0, o: 0.55 }
+    target.current = { ...REST }
     cardRef.current?.classList.remove('is-tilting')
     start()
   }
