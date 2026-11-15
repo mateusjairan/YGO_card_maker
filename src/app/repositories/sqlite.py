@@ -11,13 +11,21 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.domain.models import Card
+from app.domain.models import Card, User
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    uploads_used  INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS cards (
     id            TEXT PRIMARY KEY,
     slug          TEXT NOT NULL UNIQUE,
-    owner_hash    TEXT NOT NULL,
+    user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name          TEXT NOT NULL,
     kind          TEXT NOT NULL,
     description   TEXT NOT NULL DEFAULT '',
@@ -39,7 +47,7 @@ CREATE TABLE IF NOT EXISTS cards (
     updated_at    TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_cards_owner  ON cards (owner_hash);
+CREATE INDEX IF NOT EXISTS idx_cards_user   ON cards (user_id);
 CREATE INDEX IF NOT EXISTS idx_cards_public ON cards (is_public, created_at DESC);
 """
 
@@ -64,8 +72,8 @@ _UPDATABLE = (
 )
 
 
-class SQLiteCardRepository:
-    """Implementação do repositório sobre um arquivo SQLite."""
+class SQLiteRepository:
+    """Cartas e duelistas sobre um arquivo SQLite."""
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
@@ -76,9 +84,10 @@ class SQLiteCardRepository:
     def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.path, timeout=10)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys=ON")
         try:
             # WAL é persistente no arquivo: configurado uma vez em setup(), não a
-            # cada conexão (era ~3 ms de overhead por requisição).
+            # cada conexão (era overhead por requisição).
             connection.execute("PRAGMA busy_timeout=5000")
             yield connection
             connection.commit()
@@ -98,7 +107,34 @@ class SQLiteCardRepository:
         except sqlite3.Error:  # pragma: no cover - falha de I/O
             return False
 
-    # --- leitura ------------------------------------------------------------
+    # --- usuários -----------------------------------------------------------
+    def create_user(self, user: User) -> User:
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO users (id, email, password_hash, uploads_used, created_at) "
+                "VALUES (:id, :email, :password_hash, :uploads_used, :created_at)",
+                user.to_row(),
+            )
+        return user
+
+    def get_user(self, user_id: str) -> User | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return User.from_row(dict(row)) if row else None
+
+    def get_user_by_email(self, email: str) -> User | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        return User.from_row(dict(row)) if row else None
+
+    def increment_uploads(self, user_id: str) -> User | None:
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE users SET uploads_used = uploads_used + 1 WHERE id = ?", (user_id,)
+            )
+        return self.get_user(user_id)
+
+    # --- cartas -------------------------------------------------------------
     def get(self, card_id: str) -> Card | None:
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM cards WHERE id = ?", (card_id,)).fetchone()
@@ -109,19 +145,18 @@ class SQLiteCardRepository:
             row = connection.execute("SELECT * FROM cards WHERE slug = ?", (slug,)).fetchone()
         return Card.from_row(dict(row)) if row else None
 
-    def list_by_owner(self, owner_hash: str, limit: int, offset: int) -> list[Card]:
+    def list_by_user(self, user_id: str, limit: int, offset: int) -> list[Card]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM cards WHERE owner_hash = ? "
-                "ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (owner_hash, limit, offset),
+                "SELECT * FROM cards WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (user_id, limit, offset),
             ).fetchall()
         return [Card.from_row(dict(row)) for row in rows]
 
-    def count_by_owner(self, owner_hash: str) -> int:
+    def count_by_user(self, user_id: str) -> int:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT COUNT(*) AS total FROM cards WHERE owner_hash = ?", (owner_hash,)
+                "SELECT COUNT(*) AS total FROM cards WHERE user_id = ?", (user_id,)
             ).fetchone()
         return int(row["total"]) if row else 0
 
@@ -139,7 +174,6 @@ class SQLiteCardRepository:
             rows = connection.execute(sql, params).fetchall()
         return [Card.from_row(dict(row)) for row in rows]
 
-    # --- escrita ------------------------------------------------------------
     def create(self, card: Card) -> Card:
         row = card.to_row()
         columns = ", ".join(row.keys())
@@ -153,15 +187,14 @@ class SQLiteCardRepository:
         assignments = ", ".join(f"{column} = :{column}" for column in _UPDATABLE)
         with self._connect() as connection:
             connection.execute(
-                f"UPDATE cards SET {assignments} WHERE id = :id AND owner_hash = :owner_hash",
-                row,
+                f"UPDATE cards SET {assignments} WHERE id = :id AND user_id = :user_id", row
             )
         return card
 
-    def delete(self, card_id: str, owner_hash: str) -> bool:
+    def delete(self, card_id: str, user_id: str) -> bool:
         with self._connect() as connection:
             cursor = connection.execute(
-                "DELETE FROM cards WHERE id = ? AND owner_hash = ?", (card_id, owner_hash)
+                "DELETE FROM cards WHERE id = ? AND user_id = ?", (card_id, user_id)
             )
         return cursor.rowcount > 0
 

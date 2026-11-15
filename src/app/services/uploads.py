@@ -1,4 +1,4 @@
-"""Serviço de upload: valida, converte e grava a arte da carta."""
+"""Serviço de upload: valida, padroniza, grava e consome a cota do duelista."""
 
 from __future__ import annotations
 
@@ -6,7 +6,10 @@ import uuid
 from dataclasses import dataclass
 
 from app.config import Settings
+from app.core.errors import QuotaExceededError
 from app.core.metrics import UPLOADS
+from app.domain.models import User
+from app.repositories.base import UserRepository
 from app.services.images import process_image
 from app.storage.base import ImageStorage, StoredImage
 
@@ -16,20 +19,39 @@ class UploadOutcome:
     stored: StoredImage
     width: int
     height: int
+    uploads_used: int
 
 
 class UploadService:
-    def __init__(self, storage: ImageStorage, settings: Settings) -> None:
+    def __init__(
+        self,
+        storage: ImageStorage,
+        settings: Settings,
+        repository: UserRepository,
+    ) -> None:
         self.storage = storage
         self.settings = settings
+        self.repository = repository
 
-    def store(self, raw: bytes, content_type: str) -> UploadOutcome:
+    def store(self, raw: bytes, content_type: str, user: User) -> UploadOutcome:
+        limit = self.settings.max_uploads_per_user
+        if user.uploads_used >= limit:
+            raise QuotaExceededError(f"Limite de {limit} uploads por duelista atingido")
+
         webp, width, height = process_image(
             raw,
             content_type=content_type,
             max_bytes=self.settings.max_upload_mb * 1024 * 1024,
+            output_px=self.settings.image_output_px,
         )
         filename = f"{uuid.uuid4().hex}.webp"
         stored = self.storage.save(webp, filename=filename, content_type="image/webp")
+
+        updated = self.repository.increment_uploads(user.id)
         UPLOADS.inc()
-        return UploadOutcome(stored=stored, width=width, height=height)
+        return UploadOutcome(
+            stored=stored,
+            width=width,
+            height=height,
+            uploads_used=updated.uploads_used if updated else user.uploads_used + 1,
+        )

@@ -58,6 +58,22 @@ export interface UploadResponse {
   width: number
   height: number
   content_type: string
+  uploads_used: number
+  uploads_limit: number
+}
+
+export interface User {
+  id: string
+  email: string
+  uploads_used: number
+  uploads_limit: number
+  created_at: string
+}
+
+export interface AuthResponse {
+  access_token: string
+  token_type: 'bearer'
+  user: User
 }
 
 export interface HealthResponse {

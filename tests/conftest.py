@@ -1,4 +1,4 @@
-"""Fixtures compartilhadas dos testes (app isolada com SQLite temporário)."""
+"""Fixtures compartilhadas dos testes (app isolada, SQLite temporário, sessão)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,9 @@ from PIL import Image
 from app.config import Settings
 from app.main import create_app
 
-OWNER_KEY = "owner-key-de-teste-1234567890"
-OTHER_OWNER_KEY = "outro-dono-de-teste-0987654321"
+EMAIL = "duelista@exemplo.com"
+PASSWORD = "senha-super-segura"
+OTHER_EMAIL = "rival@exemplo.com"
 
 
 @pytest.fixture()
@@ -27,9 +28,11 @@ def settings(tmp_path) -> Settings:
         upload_dir=str(tmp_path / "uploads"),
         public_base_url="http://testserver",
         frontend_base_url="http://web.test",
-        owner_key_salt="salt-de-teste",
+        secret_key="segredo-de-teste-com-mais-de-32-bytes-ok",
         max_upload_mb=1,
         max_cards_per_owner=5,
+        max_uploads_per_user=5,
+        image_output_px=256,
     )
 
 
@@ -40,9 +43,35 @@ def app(settings: Settings):
 
 @pytest.fixture()
 def client(app) -> Iterator[TestClient]:
+    """Cliente já autenticado como `duelista@exemplo.com`."""
     with TestClient(app) as test_client:
-        test_client.headers.update({"X-Owner-Key": OWNER_KEY})
+        response = test_client.post(
+            "/api/auth/register", json={"email": EMAIL, "password": PASSWORD}
+        )
+        assert response.status_code == 201, response.text
+        _authenticate(test_client, response.json())
         yield test_client
+
+
+@pytest.fixture()
+def other_client(app) -> Iterator[TestClient]:
+    """Segundo duelista, para testar posse (403)."""
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/api/auth/register", json={"email": OTHER_EMAIL, "password": PASSWORD}
+        )
+        _authenticate(test_client, response.json())
+        yield test_client
+
+
+@pytest.fixture()
+def anonymous_client(app) -> Iterator[TestClient]:
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def _authenticate(client: TestClient, payload: dict) -> None:
+    client.headers["Authorization"] = f"Bearer {payload['access_token']}"
 
 
 @pytest.fixture()

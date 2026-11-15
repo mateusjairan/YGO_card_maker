@@ -21,7 +21,7 @@ def make_card(**overrides) -> Card:
     data = {
         "id": "0f3d9a52-7c1e-4a6b-9a41-2c7e5b1d8f03",
         "slug": "aurora",
-        "owner_hash": "hash",
+        "user_id": "usuario-1",
         "name": "Aurora",
         "kind": CardKind.MONSTER,
         "monster_kind": MonsterKind.EFFECT,
@@ -224,7 +224,7 @@ class TestCardModel:
             {
                 "id": "abc",
                 "slug": "abc",
-                "owner_hash": "h",
+                "user_id": "usuario-1",
                 "name": "Sem extras",
                 "kind": "spell",
                 "created_at": now,

@@ -36,7 +36,7 @@ class AppError(Exception):
 class UnauthorizedError(AppError):
     status_code = 401
     code = "unauthorized"
-    message = "Chave de acesso ausente ou inválida"
+    message = "Não autenticado"
 
 
 class ForbiddenError(AppError):
@@ -67,3 +67,15 @@ class LimitExceededError(AppError):
     status_code = 429
     code = "limit_exceeded"
     message = "Limite de cartas atingido"
+
+
+class ConflictError(AppError):
+    status_code = 409
+    code = "conflict"
+    message = "Recurso já existe"
+
+
+class QuotaExceededError(AppError):
+    status_code = 403
+    code = "quota_exceeded"
+    message = "Você atingiu o limite de uploads"

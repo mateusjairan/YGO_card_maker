@@ -1,4 +1,4 @@
-"""Processamento de imagens (validação, orientação e reencode para WebP)."""
+"""Processamento de imagens: validação, padronização quadrada e WebP."""
 
 from __future__ import annotations
 
@@ -15,12 +15,43 @@ ALLOWED_CONTENT_TYPES = {
     "image/webp": "webp",
 }
 
-MAX_SIDE = 1400
 WEBP_QUALITY = 82
 
 
-def process_image(raw: bytes, *, content_type: str, max_bytes: int) -> tuple[bytes, int, int]:
-    """Valida e normaliza a imagem. Retorna (webp_bytes, width, height)."""
+def standardize(image: Image.Image, *, output_px: int) -> Image.Image:
+    """Recorta o centro em 1:1 e redimensiona para `output_px` (LANCZOS).
+
+    Toda arte termina no mesmo formato, então a carta nunca "pula" de proporção
+    entre uma imagem e outra.
+    """
+    image = ImageOps.exif_transpose(image)
+    if image.mode in ("RGBA", "LA", "P"):
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        rgba = image.convert("RGBA")
+        background.paste(rgba, mask=rgba.split()[-1])
+        image = background
+    else:
+        image = image.convert("RGB")
+
+    width, height = image.size
+    side = min(width, height)
+    left = (width - side) // 2
+    top = (height - side) // 2
+    image = image.crop((left, top, left + side, top + side))
+
+    # nunca faz upscale: 2400x1600 vira 1024x1024, 80x80 continua 80x80
+    target = min(output_px, side)
+    return image.resize((target, target), Image.Resampling.LANCZOS)
+
+
+def process_image(
+    raw: bytes,
+    *,
+    content_type: str,
+    max_bytes: int,
+    output_px: int = 1024,
+) -> tuple[bytes, int, int]:
+    """Valida e padroniza a imagem. Devolve (webp_bytes, width, height)."""
     if content_type not in ALLOWED_CONTENT_TYPES:
         raise UploadError("Envie uma imagem JPEG, PNG ou WebP")
     if not raw:
@@ -36,10 +67,7 @@ def process_image(raw: bytes, *, content_type: str, max_bytes: int) -> tuple[byt
 
     try:
         with Image.open(BytesIO(raw)) as source:
-            image = ImageOps.exif_transpose(source)
-            image = image.convert("RGBA")
-            image.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
-
+            image = standardize(source, output_px=output_px)
             buffer = BytesIO()
             image.save(buffer, format="WEBP", quality=WEBP_QUALITY, method=6)
             return buffer.getvalue(), image.width, image.height

@@ -28,10 +28,11 @@
   <style>
     :root {
       color-scheme: dark;
-      --ink: #f4ecdd;
-      --muted: #a99d8b;
-      --gold: #d8b25f;
-      --bg: #0b0d12;
+      --ink: #e9f2ff;
+      --muted: #93a8c6;
+      --gold: #e6c273;
+      --cyan: #59d8ff;
+      --bg: #04060d;
     }
 
     * { box-sizing: border-box; }
@@ -42,9 +43,22 @@
       color: var(--ink);
       font-family: 'EB Garamond', Georgia, serif;
       background:
-        radial-gradient(70% 55% at 15% 0%, rgba(126, 16, 28, 0.55), transparent 70%),
-        radial-gradient(60% 50% at 90% 10%, rgba(38, 62, 110, 0.45), transparent 70%),
-        var(--bg);
+        radial-gradient(80% 55% at 12% -10%, rgba(30, 90, 170, 0.35), transparent 62%),
+        radial-gradient(60% 45% at 92% 4%, rgba(120, 60, 190, 0.22), transparent 65%),
+        linear-gradient(180deg, #05080f 0%, var(--bg) 60%, #03050a 100%);
+      background-attachment: fixed;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(96, 190, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96, 190, 255, 0.045) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(90% 70% at 50% 20%, #000 20%, transparent 78%);
     }
 
     a { color: inherit; }
@@ -144,18 +158,19 @@
       letter-spacing: 0.12em;
       text-transform: uppercase;
       padding: 13px 22px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(89, 216, 255, 0.4);
+      background: rgba(89, 216, 255, 0.07);
+      color: var(--cyan);
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
       transition: transform 0.2s ease, background 0.2s ease;
     }
 
-    .btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.1); }
+    .btn:hover { transform: translateY(-1px); background: rgba(89, 216, 255, 0.16); }
 
     .btn--primary {
       border-color: transparent;
-      color: #1a1206;
-      background: linear-gradient(180deg, #f0d79a, #c99a3f);
+      color: #10131c;
+      background: linear-gradient(180deg, #ffe9b8, #c99a3f);
       box-shadow: 0 10px 24px -12px rgba(201, 154, 63, 0.9);
     }
 

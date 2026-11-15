@@ -3,12 +3,13 @@
  * Uso: node scripts/smoke.mjs [http://127.0.0.1:8000]
  */
 const base = (process.argv[2] ?? 'http://127.0.0.1:8000').replace(/\/$/, '')
-const owner = 'smoke-test-owner-key-0001'
+const stamp = Date.now()
 
-const headers = { 'Content-Type': 'application/json', 'X-Owner-Key': owner }
+let token = ''
+const auth = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' })
 
 async function call(path, init = {}) {
-  const response = await fetch(base + path, { ...init, headers: { ...headers, ...(init.headers ?? {}) } })
+  const response = await fetch(base + path, { ...init, headers: { ...auth(), ...(init.headers ?? {}) } })
   const text = await response.text()
   let body = null
   try {
@@ -25,15 +26,36 @@ function check(name, condition, detail) {
   console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
 }
 
-const health = await call('/health')
-check('GET /health', health.status === 200 && health.body.status === 'ok', `db=${health.body?.checks?.database}`)
+const health = await fetch(`${base}/health`)
+check('GET /health', health.status === 200)
+
+const registered = await call('/api/auth/register', {
+  method: 'POST',
+  body: JSON.stringify({ email: `smoke-${stamp}@exemplo.com`, password: 'senha-forte-123' }),
+})
+token = registered.body?.access_token ?? ''
+check('POST /api/auth/register', registered.status === 201 && Boolean(token), registered.body?.detail ?? '')
+check(
+  'cota inicial 0/5',
+  registered.body?.user?.uploads_used === 0 && registered.body?.user?.uploads_limit === 5,
+)
+
+const me = await call('/api/auth/me')
+check('GET /api/auth/me', me.status === 200 && me.body.email.includes('smoke-'))
+
+const login = await call('/api/auth/login', {
+  method: 'POST',
+  body: JSON.stringify({ email: `smoke-${stamp}@exemplo.com`, password: 'senha-forte-123' }),
+})
+check('POST /api/auth/login', login.status === 200)
 
 const created = await call('/api/cards', {
   method: 'POST',
   body: JSON.stringify({
     name: 'Aurora, Sentinela do Véu',
     kind: 'monster',
-    description: 'Quando esta carta é invocada, olhe para o céu: o primeiro desejo que você fizer vira um escudo.',
+    description:
+      'Quando esta carta é invocada, olhe para o céu: o primeiro desejo que você fizer vira um escudo.',
     monster_kind: 'effect',
     attribute: 'light',
     race: 'Fada',
@@ -45,7 +67,11 @@ const created = await call('/api/cards', {
     is_public: true,
   }),
 })
-check('POST /api/cards', created.status === 201 && Boolean(created.body?.slug), String(created.body?.detail ?? ''))
+check(
+  'POST /api/cards',
+  created.status === 201 && Boolean(created.body?.slug),
+  String(created.body?.detail ?? ''),
+)
 const card = created.body
 
 const mine = await call('/api/cards/mine')
@@ -64,24 +90,41 @@ check(
   page.status === 200 && html.includes(card.name) && html.includes('og:title'),
 )
 
+// upload padronizado: a API recorta em 1:1 e nunca faz upscale
+const pixel = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+const form = new FormData()
+form.append('file', new Blob([pixel], { type: 'image/png' }), 'pixel.png')
+const upload = await fetch(`${base}/api/uploads`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${token}` },
+  body: form,
+})
+const uploadBody = await upload.json()
+check(
+  'POST /api/uploads (quadrado + webp)',
+  upload.status === 201 && uploadBody.width === uploadBody.height && uploadBody.url.endsWith('.webp'),
+  `${uploadBody.width}x${uploadBody.height} · ${uploadBody.uploads_used}/${uploadBody.uploads_limit}`,
+)
+
 const patched = await call(`/api/cards/${card.id}`, {
   method: 'PATCH',
   body: JSON.stringify({ name: `${card.name} (revista)`, level: 8 }),
 })
 check('PATCH /api/cards/{id}', patched.status === 200 && patched.body.name.endsWith('(revista)'))
 
-const forbidden = await call(`/api/cards/${card.id}`, {
-  method: 'PATCH',
-  headers: { 'X-Owner-Key': 'outro-dono-qualquer-1234' },
-  body: JSON.stringify({ name: 'invasão' }),
-})
-check('PATCH com outra chave retorna 403', forbidden.status === 403)
+const anonymous = await fetch(`${base}/api/cards/mine`)
+check('GET /api/cards/mine sem token retorna 401', anonymous.status === 401)
 
 const metrics = await fetch(`${base}/metrics`)
 const metricsText = await metrics.text()
 check(
   'GET /metrics',
-  metrics.status === 200 && metricsText.includes('http_requests_total') && metricsText.includes('ygo_cards_created_total'),
+  metrics.status === 200 &&
+    metricsText.includes('http_requests_total') &&
+    metricsText.includes('ygo_cards_created_total'),
 )
 
 const removed = await call(`/api/cards/${card.id}`, { method: 'DELETE' })

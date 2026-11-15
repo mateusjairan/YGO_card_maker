@@ -10,14 +10,21 @@ o que a IA fez, o que foi decidido pelo autor e como o resultado foi verificado.
   (`yu-gi-oh-card-crush`): moldura metálica, estrelas, caixa de texto e efeito holográfico.
 - **Rascunho dos testes** de domínio e de integração, revisados e ajustados pelo autor.
 - **Revisão de texto** do README e deste documento.
+- **Login por e-mail** (auth própria) e a **cota de 5 uploads**: rotas, `AuthService`, hashing
+  com scrypt, JWT e testes.
+- **Tema visual "duel field"** inspirado no Master Duel: paleta, painéis chanfrados, pips de cota.
+- **Padronização da arte**: recorte central 1:1 + downscale sem upscale + WebP.
+- **Fluidez do editor**: `useDeferredValue` na prévia, `memo` na carta, exportação sob demanda e
+  animações holográficas apenas no hover.
 
 ## O que foi decidido pelo autor
 
 - Nível **Projeto B** e o escopo (3 tipos de carta, upload, PNG, link público).
 - **FastAPI** em vez de Node, e o **Repository Pattern** com SQLite/Supabase — alternativa e
   consequências registradas no [ADR 0001](adr/0001-arquitetura-em-camadas.md).
-- Identidade anônima por chave no navegador em vez de login (velocidade de entrega × risco de
-  perder a posse ao trocar de dispositivo).
+- **Auth própria por e-mail** (scrypt + JWT) em vez de Supabase Auth, para o fluxo rodar e ser
+  testado sem depender de SMTP/credenciais —[ADR 0002](adr/0002-autenticacao.md).
+- **Cota vitalícia de 5 uploads** por conta (apagar carta não devolve upload).
 - Página pública renderizada no servidor (Jinja) para ter Open Graph de verdade.
 - Troca do `prometheus-fastapi-instrumentator` (quebrou com o FastAPI 0.163) por middleware
   próprio usando `prometheus_client`.
@@ -30,10 +37,10 @@ Nada foi aceito sem execução:
 
 | Verificação | Resultado |
 | --- | --- |
-| `pytest` | 73 testes, 92,5% de cobertura (mínimo declarado: 80%) |
+| `pytest` | 89 testes, 92,6% de cobertura (mínimo declarado: 80%) |
 | `ruff check` / `ruff format --check` | limpo |
 | `pnpm lint` / `pnpm build` / `tsc --noEmit` | limpo |
-| `node scripts/smoke.mjs` | 11/11 verificações do fluxo (criar, listar, editar, 403, excluir, OG) |
+| `node scripts/smoke.mjs` | 16/16 verificações (cadastro, login, cota, cartas, upload, 401/403, OG) |
 | `k6 run load/k6-smoke.js` | p95 = 65,2 ms, 0% de falhas (ver [desempenho](desempenho.md)) |
 | Inspeção visual | screenshots em `docs/img/` (desktop e mobile) |
 
@@ -45,3 +52,5 @@ Nada foi aceito sem execução:
   foi adicionado fallback para `unmatched` para não quebrar em 404.
 - O CSS inicial tinha `border-image` que não funcionava no export PNG; foi trocado por moldura
   em `padding` + gradient.
+- A padronização de imagem começou com upscale para 1024; foi corrigida para **nunca** aumentar
+  uma arte menor (só recortar e reduzir), com teste cobrindo (`test_imagem_pequena_nao_sofre_upscale`).

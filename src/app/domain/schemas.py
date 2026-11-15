@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.domain.models import Attribute, Card, CardKind, MonsterKind, SpellKind, TrapKind
 from app.domain.rules import (
@@ -172,6 +172,36 @@ class UploadResult(BaseModel):
     width: int
     height: int
     content_type: Literal["image/webp"] = "image/webp"
+    uploads_used: int = 0
+    uploads_limit: int = 0
+
+
+class RegisterRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128, description="Mínimo de 8 caracteres")
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+
+class UserRead(BaseModel):
+    id: str
+    email: str
+    uploads_used: int
+    uploads_limit: int
+    created_at: datetime
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    user: UserRead
 
 
 class HealthStatus(BaseModel):

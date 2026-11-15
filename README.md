@@ -7,9 +7,9 @@
 [![SLO p95](https://img.shields.io/badge/p95-65%20ms-blue)](docs/desempenho.md)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-lightgrey)](#licença)
 
-Criador de cartas customizadas de Yu-Gi-Oh!: você monta a carta no navegador com a sua arte,
-moldura por atributo, brilho holográfico, exporta em PNG 2× e compartilha um link que já abre
-com prévia no WhatsApp/Discord/X.
+Criador de cartas customizadas de Yu-Gi-Oh!: você entra com e-mail, monta a carta no navegador
+com a sua arte, moldura por atributo, brilho holográfico, exporta em PNG 2× e compartilha um link
+que já abre com prévia no WhatsApp/Discord/X.
 
 <p align="center">
   <img src="docs/img/editor.png" alt="Editor de cartas com prévia em tempo real" width="880">
@@ -19,6 +19,7 @@ com prévia no WhatsApp/Discord/X.
 | --- | --- |
 | Frontend | React 18 + TypeScript + Vite (SPA) |
 | Backend | FastAPI + Pydantic v2 (Python 3.13) |
+| Autenticação | E-mail + senha (scrypt) com sessão JWT HS256 |
 | Banco | Supabase Postgres (produção) · SQLite (desenvolvimento e testes) |
 | Storage | Supabase Storage (produção) · disco local (desenvolvimento) |
 | Infra | Docker Compose · Nginx · GitHub Actions |
@@ -33,6 +34,7 @@ com prévia no WhatsApp/Discord/X.
 - [Como rodar sem Docker](#como-rodar-sem-docker)
 - [Como testar](#como-testar)
 - [API](#api)
+- [Interface](#interface)
 - [Arquitetura](#arquitetura)
 - [Supabase](#supabase)
 - [Deploy](#deploy)
@@ -46,23 +48,27 @@ com prévia no WhatsApp/Discord/X.
 
 ## O que funciona
 
-Fluxo principal: **criar → salvar → compartilhar**.
+Fluxo principal: **entrar → criar → salvar → compartilhar**.
 
+- **Login por e-mail** (cadastro + senha) com sessão JWT de 7 dias; rotas de cartas exigem sessão.
+- **Cota de 5 uploads por conta** — cada arte enviada consome 1; a API responde `403` ao exceder e
+  a interface mostra os pips de cota no cabeçalho.
 - **Três tipos de carta** — Monstro (9 categorias: normal, efeito, ritual, fusão, sincro, xyz,
   link, pêndulo, ficha), Magia (6) e Armadilha (3).
 - **Moldura por atributo** — Luz, Trevas, Terra, Água, Fogo, Vento e Divino têm paleta própria,
   como nas cartas originais; magia e armadilha usam o verde e o rosa clássicos.
 - **Nível/Rank/Link** — estrelas clicáveis, estrelas escuras para Xyz e selo `LINK-n` para Link.
-- **Upload de arte** com validação de tipo/tamanho e reencode automático para WebP (máx. 1400 px).
+- **Upload padronizado** — recorte central 1:1, downscale até 1024 px (nunca faz upscale) e
+  reencode para WebP; toda arte entra no mesmo formato.
 - **Prévia em tempo real** com o mesmo CSS usado na página pública.
 - **Exportação em PNG 2×** (840×1224) direto do DOM.
 - **Página pública SSR** em `/c/{slug}` com Open Graph (a arte aparece na prévia do link).
-- **Galeria pública** na home, **minhas cartas** por identidade anônima do navegador.
-- **Editar e excluir** apenas as próprias cartas (chave de dono + hash SHA-256 no servidor).
+- **Galeria pública** na home e **minhas cartas** por conta.
+- **Editar e excluir** apenas as próprias cartas (posse por `user_id`).
 
 <p align="center">
   <img src="docs/img/home.png" alt="Home" width="640">
-  <img src="docs/img/share.png" alt="Página pública da carta" width="640">
+  <img src="docs/img/login.png" alt="Tela de login" width="640">
 </p>
 
 ## Como subir com um comando
@@ -113,7 +119,7 @@ link de compartilhamento funciona igual em desenvolvimento e em produção (mesm
 ## Como testar
 
 ```bash
-# Backend: 73 testes, cobertura obrigatória de 80% (atingido: 92,5%)
+# Backend: 89 testes, cobertura obrigatória de 80% (atingido: 92,6%)
 pytest
 
 # Lint e formatação Python
@@ -133,7 +139,8 @@ k6 run load/k6-smoke.js
 ```
 
 Os testes cobrem regras de domínio (validação de tipo/atributo/nível, slug, linha de tipo),
-o repositório SQLite, a API inteira via HTTP, upload de imagem, página pública e métricas.
+autenticação (cadastro, login, sessão, cota), o repositório SQLite, a API inteira via HTTP,
+upload padronizado, página pública e métricas.
 Resultados de carga medidos em [docs/desempenho.md](docs/desempenho.md).
 
 ## API
@@ -144,31 +151,49 @@ e validado no CI (o build falha se o YAML ficar desatualizado).
 
 | Método | Rota | Descrição | Auth |
 | --- | --- | --- | --- |
-| `POST` | `/api/cards` | Cria carta | `X-Owner-Key` |
+| `POST` | `/api/auth/register` | Cria a conta e devolve o token | — |
+| `POST` | `/api/auth/login` | Autentica e devolve o token | — |
+| `GET` | `/api/auth/me` | Sessão atual + cota de uploads | bearer |
+| `POST` | `/api/cards` | Cria carta | bearer |
 | `GET` | `/api/cards` | Galeria pública (`limit`, `offset`, `q`) | — |
-| `GET` | `/api/cards/mine` | Cartas do dono da chave | `X-Owner-Key` |
+| `GET` | `/api/cards/mine` | Cartas do duelista | bearer |
 | `GET` | `/api/cards/{id}` | Detalhe | — |
 | `GET` | `/api/cards/slug/{slug}` | Detalhe pela URL amigável | — |
 | `PATCH` | `/api/cards/{id}` | Atualização parcial | dono |
 | `DELETE` | `/api/cards/{id}` | Remove carta + imagem | dono |
-| `POST` | `/api/uploads` | Upload da arte (→ WebP) | — |
+| `POST` | `/api/uploads` | Upload da arte (padroniza em 1024² WebP) | bearer |
 | `GET` | `/c/{slug}` | Página pública com Open Graph | — |
 | `GET` | `/health`, `/metrics` | Health check e Prometheus | — |
 
-**Identidade sem login:** o navegador gera uma chave aleatória (`localStorage`) e envia em
-`X-Owner-Key`. O servidor guarda apenas `sha256(salt + chave)`, nunca a chave em texto puro.
-Quem tem a chave edita; quem não tem recebe `403`.
+**Sessão:** o front guarda o JWT e envia `Authorization: Bearer <token>`. Senhas usam `scrypt`
+com salt por usuário; o token é HS256 com `SECRET_KEY` do ambiente e expira em 7 dias.
+A posse da carta é comparada por `user_id` — outro duelista recebe `403`.
 
 Exemplo:
 
 ```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"duelista@exemplo.com","password":"senha-forte-123"}' | jq -r .access_token)
+
 curl -X POST http://localhost:8000/api/cards \
   -H 'Content-Type: application/json' \
-  -H 'X-Owner-Key: minha-chave-anonima-1234' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"name":"Aurora do Véu","kind":"monster","monster_kind":"effect",
        "attribute":"light","race":"Fada","level":7,"atk":2400,"defense":1800,
        "description":"Quando esta carta é invocada, o primeiro desejo vira escudo."}'
 ```
+
+## Interface
+
+A UI segue a linguagem dos jogos online de Yu-Gi-Oh! (referência: Master Duel): fundo naval quase
+preto, grade sutil, acentos ciano e dourado, painéis com cantos em "L", botões chanfrados e pips
+de cota no cabeçalho. As **fontes da carta continuam as originais** (Cinzel no nome e nos tipos,
+EB Garamond no texto), garantindo que a carta renderizada pareça uma carta de verdade.
+
+Fluidez: a prévia usa `useDeferredValue` (digitar não espera a pintura da carta), o componente da
+carta é `memo`, o palco de exportação só é montado durante a exportação e o brilho holográfico
+só anima com o ponteiro sobre a carta — sem `backdrop-filter` no cabeçalho.
 
 ## Arquitetura
 
@@ -176,6 +201,8 @@ curl -X POST http://localhost:8000/api/cards \
 flowchart LR
     U[Navegador] -->|HTTPS| CF[Cloudflare Pages / Nginx]
     CF -->|/api, /c, /media| API[FastAPI]
+    API --> AUTH[AuthService<br/>scrypt + JWT]
+    AUTH --> UREPO{UserRepository}
     API --> SVC[CardService<br/>regras + posse]
     SVC --> REPO{CardRepository}
     REPO -->|dev| SQLITE[(SQLite)]
@@ -220,9 +247,11 @@ apenas traduzem HTTP.
    FRONTEND_BASE_URL=https://seu-site.pages.dev
    ```
 
-4. Gere uma salt própria: `OWNER_KEY_SALT=$(openssl rand -hex 32)`.
+4. Gere os segredos: `SECRET_KEY=$(openssl rand -hex 32)`.
 
-Com `STORAGE_BACKEND=supabase` a API passa a usar PostgREST e o Storage; nada muda no frontend.
+As migrations criam `public.users` (`id`, `email` único, `password_hash`, `uploads_used`), a
+tabela `cards` com `user_id` e a função `increment_user_uploads`. Com `STORAGE_BACKEND=supabase`
+a API passa a usar PostgREST e o Storage; nada muda no frontend.
 
 ## Deploy
 
@@ -316,14 +345,16 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 | Critério | Evidência |
 | --- | --- |
 | **M1** — funciona, código e design | `docker compose up` sobe tudo; Repository Pattern justificado no ADR; SOLID (domínio isolado, injeção em `main.py`); interface autoral |
-| **M2** — testes e CI | `pytest` (73 testes, 92,5% ≥ 80%), 1 teste de integração por fluxo, ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
-| **M3** — ambientes, segredos, observabilidade | `.env.example`, segredos só no servidor, logs JSON, `/metrics`, SLO declarado |
-| **M4** — arquitetura, documentação, desempenho | [ADR](docs/adr/0001-arquitetura-em-camadas.md), [OpenAPI](docs/openapi.yaml) validado no CI, [k6 + p95](docs/desempenho.md), README |
+| **M2** — testes e CI | `pytest` (89 testes, 92,6% ≥ 80%), testes de integração por fluxo (auth, cartas, upload, cota), ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
+| **M3** — ambientes, segredos, observabilidade | `.env.example`, `SECRET_KEY` e service role só no servidor, logs JSON, `/metrics`, SLO declarado |
+| **M4** — arquitetura, documentação, desempenho | [ADR 0001](docs/adr/0001-arquitetura-em-camadas.md) e [ADR 0002](docs/adr/0002-autenticacao.md), [OpenAPI](docs/openapi.yaml) validado no CI, [k6 + p95](docs/desempenho.md), README |
 
 ## Limites conhecidos
 
-- **Sem login**: a posse é por chave anônima do navegador. Trocar de dispositivo perde o acesso
-  de edição (a carta pública continua acessível pelo link). Autenticação Supabase é o próximo passo.
+- **Sem verificação de e-mail**: o cadastro aceita qualquer e-mail válido no formato. Não há
+  "esqueci a senha" nem rate limiting no login (ver [ADR 0002](docs/adr/0002-autenticacao.md)).
+- **Cota vitalícia de 5 uploads**: apagar uma carta não devolve upload — é uma decisão de produto
+  para manter o custo de storage previsível.
 - **Sem moderação** de conteúdo na galeria pública.
 - A integração Supabase está implementada em repositório e storage próprios, com migrations
   prontas; o fluxo validado em execução contínua é o SQLite local (o mesmo contrato).

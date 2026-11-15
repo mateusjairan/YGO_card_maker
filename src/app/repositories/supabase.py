@@ -10,7 +10,7 @@ from typing import Any
 
 from supabase import Client, create_client
 
-from app.domain.models import Card
+from app.domain.models import Card, User
 
 UPDATABLE_COLUMNS = (
     "name",
@@ -45,8 +45,8 @@ def _row(response: Any) -> dict[str, Any] | None:
     return data or None
 
 
-class SupabaseCardRepository:
-    """Implementação sobre a tabela `public.cards` do Supabase."""
+class SupabaseRepository:
+    """Cartas e duelistas sobre a tabela `cards` e `users` do Supabase."""
 
     def __init__(self, url: str, service_role_key: str) -> None:
         if not url or not service_role_key:
@@ -64,6 +64,28 @@ class SupabaseCardRepository:
         except Exception:  # pragma: no cover - depende de rede
             return False
 
+    # --- usuários -----------------------------------------------------------
+    def create_user(self, user: User) -> User:
+        self.client.table("users").insert(user.to_row()).execute()
+        return user
+
+    def get_user(self, user_id: str) -> User | None:
+        response = self.client.table("users").select("*").eq("id", user_id).maybe_single().execute()
+        row = _row(response)
+        return User.from_row(row) if row else None
+
+    def get_user_by_email(self, email: str) -> User | None:
+        response = (
+            self.client.table("users").select("*").eq("email", email).maybe_single().execute()
+        )
+        row = _row(response)
+        return User.from_row(row) if row else None
+
+    def increment_uploads(self, user_id: str) -> User | None:
+        self.client.rpc("increment_user_uploads", {"p_user_id": user_id}).execute()
+        return self.get_user(user_id)
+
+    # --- cartas -------------------------------------------------------------
     def get(self, card_id: str) -> Card | None:
         response = self.client.table("cards").select("*").eq("id", card_id).maybe_single().execute()
         row = _row(response)
@@ -74,23 +96,20 @@ class SupabaseCardRepository:
         row = _row(response)
         return Card.from_row(row) if row else None
 
-    def list_by_owner(self, owner_hash: str, limit: int, offset: int) -> list[Card]:
+    def list_by_user(self, user_id: str, limit: int, offset: int) -> list[Card]:
         response = (
             self.client.table("cards")
             .select("*")
-            .eq("owner_hash", owner_hash)
+            .eq("user_id", user_id)
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
         )
         return [Card.from_row(row) for row in _rows(response)]
 
-    def count_by_owner(self, owner_hash: str) -> int:
+    def count_by_user(self, user_id: str) -> int:
         response = (
-            self.client.table("cards")
-            .select("id", count="exact")
-            .eq("owner_hash", owner_hash)
-            .execute()
+            self.client.table("cards").select("id", count="exact").eq("user_id", user_id).execute()
         )
         count = getattr(response, "count", None)
         return int(count) if count is not None else len(_rows(response))
@@ -116,18 +135,14 @@ class SupabaseCardRepository:
             self.client.table("cards")
             .update(payload)
             .eq("id", card.id)
-            .eq("owner_hash", card.owner_hash)
+            .eq("user_id", card.user_id)
             .execute()
         )
         return card
 
-    def delete(self, card_id: str, owner_hash: str) -> bool:
+    def delete(self, card_id: str, user_id: str) -> bool:
         response = (
-            self.client.table("cards")
-            .delete()
-            .eq("id", card_id)
-            .eq("owner_hash", owner_hash)
-            .execute()
+            self.client.table("cards").delete().eq("id", card_id).eq("user_id", user_id).execute()
         )
         return bool(_rows(response))
 
