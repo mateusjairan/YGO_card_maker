@@ -43,3 +43,5 @@ Thumbs.db
 
 pytest-of-*/
 
+
+web/.vite/
