@@ -204,21 +204,28 @@ O acabamento é parte do modelo (`rarity` no banco), então a carta compartilhad
 (Jinja) e a prévia (React) renderizam exatamente o mesmo foil. Tudo é CSS puro — o PNG exportado
 sai com o acabamento.
 
-| Raridade | Nome | Arte |
-| --- | --- | --- |
-| `common` | preto | sem foil |
-| `rare` | prateado | brilho leve |
-| `super` | prateado | foil de superfície |
-| `ultra` | dourado | borda dourada + foil |
-| `secret` | arco-íris | linhas diagonais arco-íris |
-| `prismatic` | arco-íris | linhas finas + brilho denso |
-| `ultimate` | dourado | granulado em relevo e sombras internas |
-| `ghost` | arco-íris pálido | arte dessaturada + glare forte |
-| `starlight` | dourado | campo de estrelas + linhas |
+O motor é **pointer-driven**, como nas cartas raras reais: o ponteiro escreve `--px`, `--py`,
+`--o`, `--rx` e `--ry` na carta (com interpolação via `requestAnimationFrame`) e cada raridade
+usa esses valores em `background-position`, `transform` e `opacity`. O foil fica **sobre a arte e
+sob o texto**, com um verniz especular discreto na carta inteira.
 
-Camadas: `.ygo-card__holo` (brilho), `.ygo-card__foil` (linhas), `.ygo-card__grain` (relevo),
-`.ygo-card__stars` (estrelas) e `.ygo-card__shine` (varredura na carta inteira, seguindo o
-ponteiro via `--shine-x/--shine-y`).
+| Raridade | Nome | Padrão de foil | Movimento |
+| --- | --- | --- | --- |
+| `common` | preto | nenhum | — |
+| `rare` | prateado | escovado vertical | desliza na vertical |
+| `super` | prateado | varredura diagonal fria | diagonal |
+| `ultra` | dourado | ouro quente + reflexo | pulso de brilho |
+| `secret` | arco-íris | rainbow diagonal + grid cruzado | desliza na horizontal |
+| `prismatic` | arco-íris | bandas verticais finas | desliza rápido |
+| `ultimate` | dourado | granulado em relevo, sem cor | luz de relevo |
+| `ghost` | arco-íris | conic radial + névoa | ciclo de matiz |
+| `starlight` | dourado | campo de estrelas + glitter | cintila |
+
+Camadas: `.ygo-card__foil` (padrão da raridade), `.ygo-card__holo` (brilho na arte),
+`.ygo-card__grain` (relevo), `.ygo-card__stars` (estrelas), `.ygo-card__sparkle` (glitter) e
+`.ygo-card__glare` (verniz que segue o ponteiro).
+
+![Quatro raridades](docs/img/rarities.png)
 
 ## Arquitetura
 

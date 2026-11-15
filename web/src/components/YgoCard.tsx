@@ -11,30 +11,65 @@ interface YgoCardProps {
  * Renderizador da carta. O markup e as classes espelham
  * src/app/templates/_card.html (página de compartilhamento no servidor).
  *
- * As camadas de foil (`.ygo-card__foil`, `__grain`, `__stars`, `__shine`) são
- * controladas pela raridade via CSS: `data-rarity`.
+ * O foil é pointer-driven: o ponteiro escreve `--px`, `--py`, `--o`, `--rx` e
+ * `--ry` na própria carta e o CSS de cada raridade usa esses valores em
+ * `background-position`/`transform`.
  */
 export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
   const cardRef = useRef<HTMLElement>(null)
   const frame = useRef(0)
+  const target = useRef({ x: 0, y: 0, o: 0.55 })
+  const current = useRef({ x: 0, y: 0, o: 0.55 })
 
   const attrKey = card.kind === 'monster' ? (card.attribute ?? 'light') : card.kind
   const level = levelInfo(card)
   const showStats = card.kind === 'monster'
   const nameClass = card.name.length > 30 ? 'is-xs' : card.name.length > 22 ? 'is-sm' : ''
 
+  function animate() {
+    const node = cardRef.current
+    if (!node) return
+    const now = current.current
+    const goal = target.current
+
+    now.x += (goal.x - now.x) * 0.16
+    now.y += (goal.y - now.y) * 0.16
+    now.o += (goal.o - now.o) * 0.12
+
+    node.style.setProperty('--px', `${now.x.toFixed(1)}px`)
+    node.style.setProperty('--py', `${now.y.toFixed(1)}px`)
+    node.style.setProperty('--o', now.o.toFixed(2))
+    node.style.setProperty('--rx', `${(-now.y / 30).toFixed(2)}deg`)
+    node.style.setProperty('--ry', `${(now.x / 30).toFixed(2)}deg`)
+
+    const settled =
+      Math.abs(goal.x - now.x) < 0.4 &&
+      Math.abs(goal.y - now.y) < 0.4 &&
+      Math.abs(goal.o - now.o) < 0.01
+
+    frame.current = settled ? 0 : requestAnimationFrame(animate)
+  }
+
+  function start() {
+    if (!frame.current) frame.current = requestAnimationFrame(animate)
+  }
+
   function handlePointerMove(event: React.PointerEvent<HTMLElement>) {
     const node = cardRef.current
-    if (!node || frame.current) return
-    const { clientX, clientY } = event
-    frame.current = requestAnimationFrame(() => {
-      frame.current = 0
-      const rect = node.getBoundingClientRect()
-      const x = ((clientX - rect.left) / rect.width) * 100
-      const y = ((clientY - rect.top) / rect.height) * 100
-      node.style.setProperty('--shine-x', `${x.toFixed(1)}%`)
-      node.style.setProperty('--shine-y', `${y.toFixed(1)}%`)
-    })
+    if (!node) return
+    const rect = node.getBoundingClientRect()
+    const x = event.clientX - rect.left - rect.width / 2
+    const y = event.clientY - rect.top - rect.height / 2
+    const distance = Math.hypot(x, y) / Math.hypot(rect.width / 2, rect.height / 2)
+    target.current = { x, y, o: Math.max(0.25, Math.min(1, 1.1 - distance * 0.55)) }
+    node.classList.add('is-tilting')
+    start()
+  }
+
+  function handlePointerLeave() {
+    target.current = { x: 0, y: 0, o: 0.55 }
+    cardRef.current?.classList.remove('is-tilting')
+    start()
   }
 
   return (
@@ -45,6 +80,7 @@ export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
       data-attribute={card.kind === 'monster' ? attrKey : undefined}
       data-rarity={card.rarity}
       onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
     >
       <div className="ygo-card__surface">
         <header className="ygo-card__header">
@@ -120,7 +156,8 @@ export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
           <span className="ygo-card__serial">{serialNumber(card.id)}</span>
         </footer>
       </div>
-      <div className="ygo-card__shine" aria-hidden="true" />
+
+      <div className="ygo-card__glare" aria-hidden="true" />
     </article>
   )
 })
