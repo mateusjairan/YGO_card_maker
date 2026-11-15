@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'reac
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError, api, shareUrl } from '../lib/api'
 import { exportCardAsPng } from '../lib/export'
-import { ATTRIBUTES, MONSTER_KINDS, RACES, SPELL_KINDS, TRAP_KINDS } from '../lib/labels'
+import { ATTRIBUTES, MONSTER_KINDS, RACES, RARITIES, SPELL_KINDS, TRAP_KINDS } from '../lib/labels'
 import { useSession } from '../lib/session'
 import type { CardDraft, CardKind, CardRecord } from '../types'
 import { KindIcon } from '../components/AttributeIcon'
@@ -25,7 +25,7 @@ const DEFAULT_DRAFT: CardDraft = {
   defense: 2000,
   image_url: null,
   image_path: null,
-  holo: true,
+  rarity: 'secret',
   is_public: true,
 }
 
@@ -47,7 +47,7 @@ function toDraft(card: CardRecord): CardDraft {
     defense: card.defense,
     image_url: card.image_url,
     image_path: card.image_path,
-    holo: card.holo,
+    rarity: card.rarity,
     is_public: card.is_public,
   }
 }
@@ -506,13 +506,28 @@ export function EditorPage() {
               </button>
             )}
 
-            <div style={{ marginTop: 16 }}>
-              <Toggle
-                checked={draft.holo}
-                title="Acabamento holográfico"
-                description="Brilho metálico que reage ao mouse e sai no PNG"
-                onChange={(checked) => update({ holo: checked })}
-              />
+            <div className="field" style={{ marginTop: 18 }}>
+              <span className="field__label">
+                <span>Raridade</span>
+                <span className="field__hint">
+                  {RARITIES.find((item) => item.value === draft.rarity)?.hint ?? ''}
+                </span>
+              </span>
+              <div className="rarity-grid" role="group" aria-label="Raridade da carta">
+                {RARITIES.map((rarity) => (
+                  <button
+                    type="button"
+                    key={rarity.value}
+                    className={`rarity-chip${draft.rarity === rarity.value ? ' active' : ''}`}
+                    data-rarity={rarity.value}
+                    onClick={() => update({ rarity: rarity.value })}
+                    aria-pressed={draft.rarity === rarity.value}
+                  >
+                    <span className={`rarity-chip__swatch rarity-chip__swatch--${rarity.value}`} />
+                    {rarity.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </Section>
 

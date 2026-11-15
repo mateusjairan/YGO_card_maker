@@ -1,10 +1,22 @@
-import type { Attribute, CardDraft, MonsterKind, SpellKind, TrapKind } from '../types'
+import type { Attribute, CardDraft, MonsterKind, Rarity, SpellKind, TrapKind } from '../types'
 
 export interface Option<T extends string> {
   value: T
   label: string
   hint?: string
 }
+
+export const RARITIES: Option<Rarity>[] = [
+  { value: 'common', label: 'Comum', hint: 'sem foil' },
+  { value: 'rare', label: 'Rara', hint: 'nome prateado' },
+  { value: 'super', label: 'Super Rara', hint: 'foil na arte' },
+  { value: 'ultra', label: 'Ultra Rara', hint: 'nome e arte dourados' },
+  { value: 'secret', label: 'Secret Rara', hint: 'linhas arco-íris' },
+  { value: 'prismatic', label: 'Prismática', hint: 'linhas finas e brilho' },
+  { value: 'ultimate', label: 'Ultimate', hint: 'arte em relevo' },
+  { value: 'ghost', label: 'Ghost', hint: 'arte fantasma' },
+  { value: 'starlight', label: 'Starlight', hint: 'campo de estrelas' },
+]
 
 export const MONSTER_KINDS: Option<MonsterKind>[] = [
   { value: 'normal', label: 'Normal' },

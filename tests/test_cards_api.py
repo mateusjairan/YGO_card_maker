@@ -160,3 +160,31 @@ class TestUpdateAndDelete:
 
         assert response.status_code == 403
         assert client.get(f"/api/cards/{created['id']}").status_code == 200
+
+
+class TestRarity:
+    def test_raridade_padrao_e_secret(self, client, spell_payload):
+        """Sem informar raridade, a API responde 'secret' (mesmo default do banco)."""
+        payload = dict(spell_payload)
+        payload.pop("rarity", None)
+        card = client.post("/api/cards", json=payload).json()
+
+        assert card["rarity"] == "secret"
+
+    def test_cria_com_raridade_especifica(self, client, monster_payload):
+        card = client.post("/api/cards", json={**monster_payload, "rarity": "ghost"}).json()
+
+        assert card["rarity"] == "ghost"
+
+    def test_raridade_invalida_retorna_422(self, client, monster_payload):
+        response = client.post("/api/cards", json={**monster_payload, "rarity": "gold"})
+
+        assert response.status_code == 422
+
+    def test_atualiza_raridade(self, client, monster_payload):
+        card = client.post("/api/cards", json=monster_payload).json()
+
+        response = client.patch(f"/api/cards/{card['id']}", json={"rarity": "starlight"})
+
+        assert response.status_code == 200
+        assert response.json()["rarity"] == "starlight"

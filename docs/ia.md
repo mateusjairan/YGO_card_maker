@@ -14,6 +14,8 @@ o que a IA fez, o que foi decidido pelo autor e como o resultado foi verificado.
   com scrypt, JWT e testes.
 - **Tema visual "duel field"** inspirado no Master Duel: paleta, painéis chanfrados, pips de cota.
 - **Padronização da arte**: recorte central 1:1 + downscale sem upscale + WebP.
+- **Sistema de raridades** (Comum → Starlight): camadas de foil em CSS puro (linhas, granulado,
+  estrelas), nome em foil e brilho que segue o ponteiro via `--shine-x/--shine-y`.
 - **Fluidez do editor**: `useDeferredValue` na prévia, `memo` na carta, exportação sob demanda e
   animações holográficas apenas no hover.
 
@@ -30,6 +32,10 @@ o que a IA fez, o que foi decidido pelo autor e como o resultado foi verificado.
   próprio usando `prometheus_client`.
 - Correções de layout encontradas em execução: nome longo estourando a barra, `h1` do hero
   aplicando 38 px ao nome da carta, grid estourando no mobile.
+- **Raridade como dado** (`rarity` no modelo/banco), não como classe de CSS no front: o mesmo
+  acabamento sai na prévia e na página pública renderizada no servidor.
+- O primeiro foil de Secret Rare cobria demais a arte (o rosto ficava arco-íris); as opacidades
+  foram calibradas e o nome ganhou contraste com gradiente mais escuro + `drop-shadow`.
 
 ## Como foi verificado
 
@@ -37,7 +43,7 @@ Nada foi aceito sem execução:
 
 | Verificação | Resultado |
 | --- | --- |
-| `pytest` | 89 testes, 92,6% de cobertura (mínimo declarado: 80%) |
+| `pytest` | 93 testes, 92,7% de cobertura (mínimo declarado: 80%) |
 | `ruff check` / `ruff format --check` | limpo |
 | `pnpm lint` / `pnpm build` / `tsc --noEmit` | limpo |
 | `node scripts/smoke.mjs` | 16/16 verificações (cadastro, login, cota, cartas, upload, 401/403, OG) |

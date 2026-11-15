@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.domain.models import Attribute, Card, CardKind, MonsterKind, SpellKind, TrapKind
+from app.domain.models import Attribute, Card, CardKind, MonsterKind, Rarity, SpellKind, TrapKind
 from app.domain.rules import (
     MAX_ARCHETYPE,
     MAX_DESCRIPTION,
@@ -49,7 +49,7 @@ class CardWrite(BaseModel):
 
     image_url: str | None = Field(default=None, max_length=500)
     image_path: str | None = Field(default=None, max_length=300)
-    holo: bool = True
+    rarity: Rarity = Rarity.SECRET
     is_public: bool = True
 
     @model_validator(mode="after")
@@ -125,7 +125,7 @@ class CardPatch(BaseModel):
     defense: int | None = Field(default=None, ge=0, le=MAX_STAT)
     image_url: str | None = Field(default=None, max_length=500)
     image_path: str | None = Field(default=None, max_length=300)
-    holo: bool | None = None
+    rarity: Rarity | None = None
     is_public: bool | None = None
 
 
@@ -149,7 +149,7 @@ class CardRead(BaseModel):
     atk: int | None = None
     defense: int | None = None
     image_url: str | None = None
-    holo: bool
+    rarity: Rarity
     is_public: bool
     views: int
     created_at: datetime

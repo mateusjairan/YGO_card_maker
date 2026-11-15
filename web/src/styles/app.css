@@ -1455,6 +1455,95 @@ a {
   color: var(--cyan);
 }
 
+/* --- raridades (seletor) --------------------------------------------------- */
+.rarity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.rarity-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: rgba(3, 7, 14, 0.6);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.rarity-chip:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.rarity-chip.active {
+  color: var(--gold-2);
+  border-color: rgba(230, 194, 115, 0.55);
+  background: var(--gold-dim);
+}
+
+.rarity-chip__swatch {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #2a3447;
+}
+
+.rarity-chip__swatch--rare {
+  background: linear-gradient(140deg, #ffffff, #c9d2dc 50%, #7e8a96);
+}
+
+.rarity-chip__swatch--super {
+  background: linear-gradient(140deg, #ffffff, #dfe7ef 45%, #a7b2bf);
+}
+
+.rarity-chip__swatch--ultra {
+  background: linear-gradient(140deg, #fff4cf, #e8c46b 50%, #a97c22);
+}
+
+.rarity-chip__swatch--secret {
+  background: linear-gradient(120deg, #ff9d9d, #ffe08a, #9dffc4, #9dc8ff, #e2a8ff);
+}
+
+.rarity-chip__swatch--prismatic {
+  background: linear-gradient(
+    120deg,
+    #ff9d9d 0 12%,
+    #ffe08a 12% 25%,
+    #9dffc4 25% 38%,
+    #9dc8ff 38% 51%,
+    #e2a8ff 51% 64%,
+    #ff9d9d 64% 76%,
+    #ffe08a 76% 88%,
+    #9dffc4 88%
+  );
+}
+
+.rarity-chip__swatch--ultimate {
+  background: repeating-linear-gradient(45deg, #e8c46b 0 3px, #b98d3f 3px 6px);
+}
+
+.rarity-chip__swatch--ghost {
+  background: linear-gradient(140deg, #f2f6ff, #b9c9e6 50%, #8fa4c8);
+}
+
+.rarity-chip__swatch--starlight {
+  background:
+    radial-gradient(2px 2px at 30% 30%, #fff, transparent 100%),
+    radial-gradient(1.5px 1.5px at 70% 60%, #dff3ff, transparent 100%),
+    radial-gradient(1.5px 1.5px at 45% 80%, #fff, transparent 100%),
+    #101a2e;
+}
+
 /* --- responsivo ------------------------------------------------------------ */
 @media (max-width: 1080px) {
   .editor {
