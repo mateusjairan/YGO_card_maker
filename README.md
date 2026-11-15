@@ -2,6 +2,11 @@
 
 **Nível declarado: Projeto B** (API de domínio único, um fluxo principal de ponta a ponta).
 
+[![CI](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml)
+[![Cobertura](https://img.shields.io/badge/cobertura-92%25-brightgreen)](docs/desempenho.md)
+[![SLO p95](https://img.shields.io/badge/p95-65%20ms-blue)](docs/desempenho.md)
+[![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-lightgrey)](#licença)
+
 Criador de cartas customizadas de Yu-Gi-Oh!: você monta a carta no navegador com a sua arte,
 moldura por atributo, brilho holográfico, exporta em PNG 2× e compartilha um link que já abre
 com prévia no WhatsApp/Discord/X.
@@ -311,7 +316,7 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 | Critério | Evidência |
 | --- | --- |
 | **M1** — funciona, código e design | `docker compose up` sobe tudo; Repository Pattern justificado no ADR; SOLID (domínio isolado, injeção em `main.py`); interface autoral |
-| **M2** — testes e CI | `pytest` (73 testes, 92,5% ≥ 80%), 1 teste de integração por fluxo, ESLint + `tsc`, CI em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| **M2** — testes e CI | `pytest` (73 testes, 92,5% ≥ 80%), 1 teste de integração por fluxo, ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
 | **M3** — ambientes, segredos, observabilidade | `.env.example`, segredos só no servidor, logs JSON, `/metrics`, SLO declarado |
 | **M4** — arquitetura, documentação, desempenho | [ADR](docs/adr/0001-arquitetura-em-camadas.md), [OpenAPI](docs/openapi.yaml) validado no CI, [k6 + p95](docs/desempenho.md), README |
 
@@ -329,3 +334,8 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 
 Declarado em [docs/ia.md](docs/ia.md), conforme combinado no curso. A decisão de arquitetura e
 a revisão do código são do autor.
+
+## Licença
+
+MIT. As artes enviadas pelos usuários continuam sendo dos respectivos autores; o projeto não
+distribui material oficial de Yu-Gi-Oh! (nome e estética são usados apenas em trabalho acadêmico).
