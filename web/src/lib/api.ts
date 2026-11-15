@@ -50,7 +50,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    if (response.status === 401) clearToken()
+    if (response.status === 401) {
+      clearToken()
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('ygo:unauthorized'))
+    }
     const data = (payload ?? {}) as { detail?: unknown; code?: string; errors?: unknown }
     const detail =
       typeof data.detail === 'string'
