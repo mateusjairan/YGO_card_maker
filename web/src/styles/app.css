@@ -484,14 +484,7 @@ a {
   opacity: 0.55;
 }
 
-.hero__stage .ygo-card {
-  transform: rotateY(-8deg) rotateX(4deg) rotateZ(-1deg);
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
 
-.hero__stage .ygo-card:hover {
-  transform: rotateY(-2deg) rotateX(1deg) translateY(-6px);
-}
 
 @keyframes ring-spin {
   to {

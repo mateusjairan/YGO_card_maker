@@ -14,8 +14,9 @@ o que a IA fez, o que foi decidido pelo autor e como o resultado foi verificado.
   com scrypt, JWT e testes.
 - **Tema visual "duel field"** inspirado no Master Duel: paleta, painéis chanfrados, pips de cota.
 - **Padronização da arte**: recorte central 1:1 + downscale sem upscale + WebP.
-- **Sistema de raridades** (Comum → Starlight): camadas de foil em CSS puro (linhas, granulado,
-  estrelas), nome em foil e brilho que segue o ponteiro via `--shine-x/--shine-y`.
+- **Sistema de raridades** (Comum → Starlight): motor de foil pointer-driven (`--px`, `--py`,
+  `--o`, inclinação 3D) com padrão e movimento próprios por raridade — rainbow diagonal do
+  Secret, escovado da Rara, relevo da Ultimate, estrelas da Starlight.
 - **Fluidez do editor**: `useDeferredValue` na prévia, `memo` na carta, exportação sob demanda e
   animações holográficas apenas no hover.
 

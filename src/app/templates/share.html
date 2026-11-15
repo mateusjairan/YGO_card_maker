@@ -220,5 +220,56 @@
       </section>
     </main>
   </div>
+
+  <script>
+    // Mesmo motor de foil do editor: o ponteiro move o gradiente e inclina a carta.
+    (() => {
+      const card = document.querySelector('.ygo-card');
+      if (!card) return;
+
+      const target = { x: 0, y: 0, o: 0.55 };
+      const current = { x: 0, y: 0, o: 0.55 };
+      let frame = 0;
+
+      const animate = () => {
+        current.x += (target.x - current.x) * 0.16;
+        current.y += (target.y - current.y) * 0.16;
+        current.o += (target.o - current.o) * 0.12;
+        card.style.setProperty('--px', current.x.toFixed(1) + 'px');
+        card.style.setProperty('--py', current.y.toFixed(1) + 'px');
+        card.style.setProperty('--o', current.o.toFixed(2));
+        card.style.setProperty('--rx', (-current.y / 30).toFixed(2) + 'deg');
+        card.style.setProperty('--ry', (current.x / 30).toFixed(2) + 'deg');
+        const settled =
+          Math.abs(target.x - current.x) < 0.4 &&
+          Math.abs(target.y - current.y) < 0.4 &&
+          Math.abs(target.o - current.o) < 0.01;
+        frame = settled ? 0 : requestAnimationFrame(animate);
+      };
+      const start = () => {
+        if (!frame) frame = requestAnimationFrame(animate);
+      };
+
+      card.addEventListener('pointermove', (event) => {
+        const rect = card.getBoundingClientRect();
+        const x = event.clientX - rect.left - rect.width / 2;
+        const y = event.clientY - rect.top - rect.height / 2;
+        const distance = Math.hypot(x, y) / Math.hypot(rect.width / 2, rect.height / 2);
+        target.x = x;
+        target.y = y;
+        target.o = Math.max(0.25, Math.min(1, 1.1 - distance * 0.55));
+        card.classList.add('is-tilting');
+        start();
+      });
+
+      card.addEventListener('pointerleave', () => {
+        target.x = 0;
+        target.y = 0;
+        target.o = 0.55;
+        card.classList.remove('is-tilting');
+        start();
+      });
+    })();
+  </script>
 </body>
 </html>
