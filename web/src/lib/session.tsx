@@ -48,6 +48,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     void refresh()
   }, [refresh])
 
+  // token expirado/revogado: a API avisa e a UI volta para o estado deslogado
+  useEffect(() => {
+    const handleUnauthorized = () => setUser(null)
+    window.addEventListener('ygo:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('ygo:unauthorized', handleUnauthorized)
+  }, [])
+
   const login = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password)
     setUser(response.user)

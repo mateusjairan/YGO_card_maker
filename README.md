@@ -125,6 +125,12 @@ link de compartilhamento funciona igual em desenvolvimento e em produção (mesm
 # Backend: 93 testes, cobertura obrigatória de 80% (atingido: 92,7%)
 pytest
 
+# Auditoria da entrega (estrutura, CI, OpenAPI, migrations, segredos, TODO)
+python scripts/audit.py
+
+# E2E da API contra uma API em execução (auth, cota, posse, XSS, CORS)
+node scripts/e2e-api.mjs http://127.0.0.1:8000
+
 # Lint e formatação Python
 ruff check src tests
 ruff format --check src tests
@@ -197,6 +203,11 @@ EB Garamond no texto), garantindo que a carta renderizada pareça uma carta de v
 Fluidez: a prévia usa `useDeferredValue` (digitar não espera a pintura da carta), o componente da
 carta é `memo`, o palco de exportação só é montado durante a exportação e o brilho holográfico
 só anima com o ponteiro sobre a carta — sem `backdrop-filter` no cabeçalho.
+
+Fontes **self-hosted** em `shared/fonts/` (Cinzel, EB Garamond e Rajdhani, subsets latin/latin-ext):
+o `html-to-image` precisa incorporar os glifos no PNG e não consegue ler CSS cross-origin — com o
+Google Fonts o export quebrava com `SecurityError`. De quebra, a carta renderiza offline e a
+página pública não depende de terceiros.
 
 ### Raridades (foil)
 
