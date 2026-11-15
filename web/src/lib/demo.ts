@@ -18,6 +18,6 @@ export const DEMO_CARD: CardDraft & { id: string } = {
   defense: 2000,
   image_url: '/demo-julia.png',
   image_path: null,
-  holo: true,
+  rarity: 'secret',
   is_public: true,
 }

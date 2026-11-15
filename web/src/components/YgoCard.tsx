@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useRef } from 'react'
 import type { CardDraft } from '../types'
 import { levelInfo, serialNumber, typeLine } from '../lib/labels'
 import { AttributeIcon } from './AttributeIcon'
@@ -10,20 +10,41 @@ interface YgoCardProps {
 /**
  * Renderizador da carta. O markup e as classes espelham
  * src/app/templates/_card.html (página de compartilhamento no servidor).
+ *
+ * As camadas de foil (`.ygo-card__foil`, `__grain`, `__stars`, `__shine`) são
+ * controladas pela raridade via CSS: `data-rarity`.
  */
 export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
+  const cardRef = useRef<HTMLElement>(null)
+  const frame = useRef(0)
+
   const attrKey = card.kind === 'monster' ? (card.attribute ?? 'light') : card.kind
   const level = levelInfo(card)
   const showStats = card.kind === 'monster'
-  const nameClass =
-    card.name.length > 30 ? 'is-xs' : card.name.length > 22 ? 'is-sm' : ''
+  const nameClass = card.name.length > 30 ? 'is-xs' : card.name.length > 22 ? 'is-sm' : ''
+
+  function handlePointerMove(event: React.PointerEvent<HTMLElement>) {
+    const node = cardRef.current
+    if (!node || frame.current) return
+    const { clientX, clientY } = event
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0
+      const rect = node.getBoundingClientRect()
+      const x = ((clientX - rect.left) / rect.width) * 100
+      const y = ((clientY - rect.top) / rect.height) * 100
+      node.style.setProperty('--shine-x', `${x.toFixed(1)}%`)
+      node.style.setProperty('--shine-y', `${y.toFixed(1)}%`)
+    })
+  }
 
   return (
     <article
       className="ygo-card"
+      ref={cardRef}
       data-kind={card.kind}
       data-attribute={card.kind === 'monster' ? attrKey : undefined}
-      data-holo={card.holo ? 'on' : 'off'}
+      data-rarity={card.rarity}
+      onPointerMove={handlePointerMove}
     >
       <div className="ygo-card__surface">
         <header className="ygo-card__header">
@@ -64,6 +85,9 @@ export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
           {card.image_url && (
             <>
               <div className="ygo-card__holo" />
+              <div className="ygo-card__foil" />
+              <div className="ygo-card__grain" />
+              <div className="ygo-card__stars" />
               <div className="ygo-card__sparkle" />
             </>
           )}
@@ -96,7 +120,7 @@ export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
           <span className="ygo-card__serial">{serialNumber(card.id)}</span>
         </footer>
       </div>
+      <div className="ygo-card__shine" aria-hidden="true" />
     </article>
   )
-}
-)
+})

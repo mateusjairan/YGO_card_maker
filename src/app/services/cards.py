@@ -39,7 +39,7 @@ _EDITABLE_FIELDS = (
     "defense",
     "image_url",
     "image_path",
-    "holo",
+    "rarity",
     "is_public",
 )
 

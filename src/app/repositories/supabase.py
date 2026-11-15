@@ -27,7 +27,7 @@ UPDATABLE_COLUMNS = (
     "defense",
     "image_url",
     "image_path",
-    "holo",
+    "rarity",
     "is_public",
     "updated_at",
 )

@@ -17,6 +17,17 @@ export type TrapKind = 'normal' | 'continuous' | 'counter'
 
 export type Attribute = 'light' | 'dark' | 'earth' | 'water' | 'fire' | 'wind' | 'divine'
 
+export type Rarity =
+  | 'common'
+  | 'rare'
+  | 'super'
+  | 'ultra'
+  | 'secret'
+  | 'prismatic'
+  | 'ultimate'
+  | 'ghost'
+  | 'starlight'
+
 /** Campos editáveis de uma carta (contrato de POST/PATCH da API). */
 export interface CardDraft {
   name: string
@@ -33,7 +44,7 @@ export interface CardDraft {
   defense: number | null
   image_url: string | null
   image_path: string | null
-  holo: boolean
+  rarity: Rarity
   is_public: boolean
 }
 

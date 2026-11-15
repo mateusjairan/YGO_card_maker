@@ -60,6 +60,9 @@ Fluxo principal: **entrar → criar → salvar → compartilhar**.
 - **Nível/Rank/Link** — estrelas clicáveis, estrelas escuras para Xyz e selo `LINK-n` para Link.
 - **Upload padronizado** — recorte central 1:1, downscale até 1024 px (nunca faz upscale) e
   reencode para WebP; toda arte entra no mesmo formato.
+- **Nove raridades** — Comum, Rara, Super, Ultra, Secret, Prismática, Ultimate, Ghost e
+  Starlight, cada uma com camadas de foil próprias (linhas arco-íris, granulado em relevo,
+  campo de estrelas, nome em foil e brilho que segue o mouse).
 - **Prévia em tempo real** com o mesmo CSS usado na página pública.
 - **Exportação em PNG 2×** (840×1224) direto do DOM.
 - **Página pública SSR** em `/c/{slug}` com Open Graph (a arte aparece na prévia do link).
@@ -119,7 +122,7 @@ link de compartilhamento funciona igual em desenvolvimento e em produção (mesm
 ## Como testar
 
 ```bash
-# Backend: 89 testes, cobertura obrigatória de 80% (atingido: 92,6%)
+# Backend: 93 testes, cobertura obrigatória de 80% (atingido: 92,7%)
 pytest
 
 # Lint e formatação Python
@@ -194,6 +197,28 @@ EB Garamond no texto), garantindo que a carta renderizada pareça uma carta de v
 Fluidez: a prévia usa `useDeferredValue` (digitar não espera a pintura da carta), o componente da
 carta é `memo`, o palco de exportação só é montado durante a exportação e o brilho holográfico
 só anima com o ponteiro sobre a carta — sem `backdrop-filter` no cabeçalho.
+
+### Raridades (foil)
+
+O acabamento é parte do modelo (`rarity` no banco), então a carta compartilhada no servidor
+(Jinja) e a prévia (React) renderizam exatamente o mesmo foil. Tudo é CSS puro — o PNG exportado
+sai com o acabamento.
+
+| Raridade | Nome | Arte |
+| --- | --- | --- |
+| `common` | preto | sem foil |
+| `rare` | prateado | brilho leve |
+| `super` | prateado | foil de superfície |
+| `ultra` | dourado | borda dourada + foil |
+| `secret` | arco-íris | linhas diagonais arco-íris |
+| `prismatic` | arco-íris | linhas finas + brilho denso |
+| `ultimate` | dourado | granulado em relevo e sombras internas |
+| `ghost` | arco-íris pálido | arte dessaturada + glare forte |
+| `starlight` | dourado | campo de estrelas + linhas |
+
+Camadas: `.ygo-card__holo` (brilho), `.ygo-card__foil` (linhas), `.ygo-card__grain` (relevo),
+`.ygo-card__stars` (estrelas) e `.ygo-card__shine` (varredura na carta inteira, seguindo o
+ponteiro via `--shine-x/--shine-y`).
 
 ## Arquitetura
 
@@ -345,7 +370,7 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 | Critério | Evidência |
 | --- | --- |
 | **M1** — funciona, código e design | `docker compose up` sobe tudo; Repository Pattern justificado no ADR; SOLID (domínio isolado, injeção em `main.py`); interface autoral |
-| **M2** — testes e CI | `pytest` (89 testes, 92,6% ≥ 80%), testes de integração por fluxo (auth, cartas, upload, cota), ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
+| **M2** — testes e CI | `pytest` (93 testes, 92,7% ≥ 80%), testes de integração por fluxo (auth, cartas, upload, cota), ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
 | **M3** — ambientes, segredos, observabilidade | `.env.example`, `SECRET_KEY` e service role só no servidor, logs JSON, `/metrics`, SLO declarado |
 | **M4** — arquitetura, documentação, desempenho | [ADR 0001](docs/adr/0001-arquitetura-em-camadas.md) e [ADR 0002](docs/adr/0002-autenticacao.md), [OpenAPI](docs/openapi.yaml) validado no CI, [k6 + p95](docs/desempenho.md), README |
 

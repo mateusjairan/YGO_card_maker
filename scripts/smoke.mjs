@@ -63,7 +63,7 @@ const created = await call('/api/cards', {
     level: 7,
     atk: 2400,
     defense: 1800,
-    holo: true,
+    rarity: 'secret',
     is_public: true,
   }),
 })

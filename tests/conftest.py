@@ -87,7 +87,7 @@ def monster_payload() -> dict:
         "level": 7,
         "atk": 2400,
         "defense": 1800,
-        "holo": True,
+        "rarity": "secret",
         "is_public": True,
     }
 
@@ -99,7 +99,7 @@ def spell_payload() -> dict:
         "kind": "spell",
         "description": "Compre 2 cartas. Você não pode dormir neste turno.",
         "spell_kind": "quick_play",
-        "holo": False,
+        "rarity": "common",
     }
 
 

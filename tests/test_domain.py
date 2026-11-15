@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.domain.models import Attribute, Card, CardKind, MonsterKind
+from app.domain.models import Attribute, Card, CardKind, MonsterKind, Rarity
 from app.domain.rules import (
     build_slug,
     level_display,
@@ -233,5 +233,5 @@ class TestCardModel:
         )
         assert restored.description == ""
         assert restored.views == 0
-        assert restored.holo is True
+        assert restored.rarity is Rarity.SECRET
         assert restored.created_at == now

@@ -35,7 +35,9 @@ create table if not exists public.cards (
     defense       integer check (defense is null or defense between 0 and 5000),
     image_url     text,
     image_path    text,
-    holo          boolean not null default true,
+    rarity        text not null default 'secret'
+                  check (rarity in ('common', 'rare', 'super', 'ultra', 'secret',
+                                    'prismatic', 'ultimate', 'ghost', 'starlight')),
     is_public     boolean not null default true,
     views         integer not null default 0,
     created_at    timestamptz not null default now(),

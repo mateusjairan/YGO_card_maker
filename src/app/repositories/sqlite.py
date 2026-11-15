@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS cards (
     defense       INTEGER,
     image_url     TEXT,
     image_path    TEXT,
-    holo          INTEGER NOT NULL DEFAULT 1,
+    rarity        TEXT NOT NULL DEFAULT 'secret',
     is_public     INTEGER NOT NULL DEFAULT 1,
     views         INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT NOT NULL,
@@ -66,7 +66,7 @@ _UPDATABLE = (
     "defense",
     "image_url",
     "image_path",
-    "holo",
+    "rarity",
     "is_public",
     "updated_at",
 )

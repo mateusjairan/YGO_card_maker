@@ -51,6 +51,20 @@ class Attribute(enum.StrEnum):
     DIVINE = "divine"
 
 
+class Rarity(enum.StrEnum):
+    """Acabamento da carta, na ordem em que o foil vai ficando mais elaborado."""
+
+    COMMON = "common"
+    RARE = "rare"
+    SUPER = "super"
+    ULTRA = "ultra"
+    SECRET = "secret"
+    PRISMATIC = "prismatic"
+    ULTIMATE = "ultimate"
+    GHOST = "ghost"
+    STARLIGHT = "starlight"
+
+
 @dataclass(slots=True)
 class Card:
     """Entidade persistida de uma carta."""
@@ -72,7 +86,7 @@ class Card:
     defense: int | None = None
     image_url: str | None = None
     image_path: str | None = None
-    holo: bool = True
+    rarity: Rarity = Rarity.SECRET
     is_public: bool = True
     views: int = 0
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -86,6 +100,7 @@ class Card:
         row["spell_kind"] = self.spell_kind.value if self.spell_kind else None
         row["trap_kind"] = self.trap_kind.value if self.trap_kind else None
         row["attribute"] = self.attribute.value if self.attribute else None
+        row["rarity"] = self.rarity.value
         row["created_at"] = self.created_at.isoformat()
         row["updated_at"] = self.updated_at.isoformat()
         return row
@@ -111,7 +126,7 @@ class Card:
             defense=row.get("defense"),
             image_url=row.get("image_url"),
             image_path=row.get("image_path"),
-            holo=bool(row.get("holo", True)),
+            rarity=Rarity(row["rarity"]) if row.get("rarity") else Rarity.SECRET,
             is_public=bool(row.get("is_public", True)),
             views=int(row.get("views") or 0),
             created_at=_as_datetime(row.get("created_at")),

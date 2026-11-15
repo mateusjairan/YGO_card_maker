@@ -99,11 +99,6 @@ components:
             type: string
           - type: 'null'
           title: Description
-        holo:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Holo
         image_path:
           anyOf:
           - maxLength: 300
@@ -149,6 +144,10 @@ components:
             type: string
           - type: 'null'
           title: Race
+        rarity:
+          anyOf:
+          - $ref: '#/components/schemas/Rarity'
+          - type: 'null'
         spell_kind:
           anyOf:
           - $ref: '#/components/schemas/SpellKind'
@@ -188,9 +187,6 @@ components:
         description:
           title: Description
           type: string
-        holo:
-          title: Holo
-          type: boolean
         id:
           title: Id
           type: string
@@ -221,6 +217,8 @@ components:
           - type: string
           - type: 'null'
           title: Race
+        rarity:
+          $ref: '#/components/schemas/Rarity'
         slug:
           title: Slug
           type: string
@@ -245,7 +243,7 @@ components:
       - name
       - kind
       - description
-      - holo
+      - rarity
       - is_public
       - views
       - created_at
@@ -285,10 +283,6 @@ components:
           maxLength: 800
           title: Description
           type: string
-        holo:
-          default: true
-          title: Holo
-          type: boolean
         image_path:
           anyOf:
           - maxLength: 300
@@ -333,6 +327,9 @@ components:
           examples:
           - Dragão
           title: Race
+        rarity:
+          $ref: '#/components/schemas/Rarity'
+          default: secret
         spell_kind:
           anyOf:
           - $ref: '#/components/schemas/SpellKind'
@@ -384,6 +381,20 @@ components:
       - pendulum
       - token
       title: MonsterKind
+      type: string
+    Rarity:
+      description: Acabamento da carta, na ordem em que o foil vai ficando mais elaborado.
+      enum:
+      - common
+      - rare
+      - super
+      - ultra
+      - secret
+      - prismatic
+      - ultimate
+      - ghost
+      - starlight
+      title: Rarity
       type: string
     RegisterRequest:
       additionalProperties: false
