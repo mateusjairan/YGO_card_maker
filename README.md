@@ -204,10 +204,19 @@ O acabamento é parte do modelo (`rarity` no banco), então a carta compartilhad
 (Jinja) e a prévia (React) renderizam exatamente o mesmo foil. Tudo é CSS puro — o PNG exportado
 sai com o acabamento.
 
-O motor é **pointer-driven**, como nas cartas raras reais: o ponteiro escreve `--px`, `--py`,
-`--o`, `--rx` e `--ry` na carta (com interpolação via `requestAnimationFrame`) e cada raridade
-usa esses valores em `background-position`, `transform` e `opacity`. O foil fica **sobre a arte e
-sob o texto**, com um verniz especular discreto na carta inteira.
+O motor é **pointer-driven**, no esquema das cartas raras reais
+([pokemon-cards-css](https://github.com/simeydotme/pokemon-cards-css) e
+[ygo-ocg-secret-rare](https://github.com/jialiang/ygo-ocg-secret-rare)):
+
+- `--pointer-x/y` (0–100%) posicionam o **glare** e a queda radial;
+- `--background-x/y` são **comprimidos** (37–63% / 33–67%) e dão o **parallax** do padrão
+  (`calc(((50% - var(--background-x)) * 2.6) + 50%)` em `background-position`);
+- `--card-opacity` acende as camadas e `--pointer-from-*` ficam disponíveis para efeitos;
+- `--rx/--ry` inclinam a carta em perspectiva.
+
+A camada `.ygo-card__foil` usa `::before` (scanlines) e `::after` (queda radial com
+`mix-blend-mode: luminosity`), o que dá a textura metálica — o foil fica **sobre a arte e sob o
+texto**, com um verniz especular discreto na carta inteira.
 
 | Raridade | Nome | Padrão de foil | Movimento |
 | --- | --- | --- | --- |
