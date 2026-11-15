@@ -37,6 +37,10 @@ class CardRepository(Protocol):
 
     def increment_views(self, card_id: str) -> None: ...
 
+    def sync_uploads(self, user_id: str) -> User | None:
+        """Recalcula a cota do duelista a partir das cartas com arte."""
+        ...
+
 
 @runtime_checkable
 class UserRepository(Protocol):
@@ -48,4 +52,3 @@ class UserRepository(Protocol):
 
     def get_user_by_email(self, email: str) -> User | None: ...
 
-    def increment_uploads(self, user_id: str) -> User | None: ...

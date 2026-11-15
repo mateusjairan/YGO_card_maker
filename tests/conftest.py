@@ -30,7 +30,7 @@ def settings(tmp_path) -> Settings:
         frontend_base_url="http://web.test",
         secret_key="segredo-de-teste-com-mais-de-32-bytes-ok",
         max_upload_mb=1,
-        max_cards_per_owner=5,
+        max_cards_per_owner=12,
         max_uploads_per_user=5,
         image_output_px=256,
     )

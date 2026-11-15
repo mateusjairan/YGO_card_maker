@@ -27,8 +27,9 @@ Implementar autenticação **própria**, no mesmo serviço, com:
   `SECRET_KEY` vinda do ambiente.
 - **Persistência** na tabela `users` (`id`, `email` único, `password_hash`, `uploads_used`),
   no repositório — funciona igual em SQLite e Supabase.
-- **Cota** de 5 uploads vitalícios por conta: `uploads_used` incrementado no repositório a cada
-  upload aceito; a API responde `403 quota_exceeded` ao exceder.
+- **Cota** de 5 artes por conta: `uploads_used` é **recalculado** a partir das cartas salvas com
+  arte (`sync_uploads`), então upload sem salvar não consome e remover a arte devolve; a API
+  responde `403 quota_exceeded` ao exceder.
 - Rotas: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`. O front guarda o
   token e envia `Authorization: Bearer`.
 

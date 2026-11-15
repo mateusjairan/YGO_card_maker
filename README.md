@@ -51,8 +51,9 @@ que já abre com prévia no WhatsApp/Discord/X.
 Fluxo principal: **entrar → criar → salvar → compartilhar**.
 
 - **Login por e-mail** (cadastro + senha) com sessão JWT de 7 dias; rotas de cartas exigem sessão.
-- **Cota de 5 uploads por conta** — cada arte enviada consome 1; a API responde `403` ao exceder e
-  a interface mostra os pips de cota no cabeçalho.
+- **Cota de 5 artes por conta** — conta as artes que estão em cartas salvas; enviar uma imagem sem
+  salvar não consome, e remover a arte (ou apagar a carta) devolve. A API responde `403` ao exceder e
+  a interface mostra os pips no cabeçalho.
 - **Três tipos de carta** — Monstro (9 categorias: normal, efeito, ritual, fusão, sincro, xyz,
   link, pêndulo, ficha), Magia (6) e Armadilha (3).
 - **Moldura por atributo** — Luz, Trevas, Terra, Água, Fogo, Vento e Divino têm paleta própria,
@@ -405,8 +406,8 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 
 - **Sem verificação de e-mail**: o cadastro aceita qualquer e-mail válido no formato. Não há
   "esqueci a senha" nem rate limiting no login (ver [ADR 0002](docs/adr/0002-autenticacao.md)).
-- **Cota vitalícia de 5 uploads**: apagar uma carta não devolve upload — é uma decisão de produto
-  para manter o custo de storage previsível.
+- **Cota de 5 artes**: é contada pelas artes em cartas salvas (remover devolve). Uploads que não
+  viram carta ficam no storage até uma limpeza — não consomem cota.
 - **Sem moderação** de conteúdo na galeria pública.
 - A integração Supabase está implementada em repositório e storage próprios, com migrations
   prontas; o fluxo validado em execução contínua é o SQLite local (o mesmo contrato).

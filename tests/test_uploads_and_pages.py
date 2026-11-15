@@ -30,7 +30,7 @@ class TestUpload:
         assert body["width"] == settings.image_output_px
         assert body["height"] == settings.image_output_px
         assert body["content_type"] == "image/webp"
-        assert body["uploads_used"] == 1
+        assert body["uploads_used"] == 0  # upload sozinho nao consome cota
         assert body["uploads_limit"] == settings.max_uploads_per_user
 
     def test_imagem_pequena_nao_sofre_upscale(self, client):
@@ -86,31 +86,124 @@ class TestUpload:
 
 
 class TestQuota:
-    def test_quinto_upload_esgota_a_cota(self, client, settings):
-        for index in range(settings.max_uploads_per_user):
+    def test_upload_sozinho_nao_consome_cota(self, client, settings):
+        for index in range(settings.max_uploads_per_user + 2):
             response = client.post(
                 "/api/uploads",
                 files={"file": (f"arte{index}.png", png_bytes((120, 120)), "image/png")},
             )
             assert response.status_code == 201, response.text
-            assert response.json()["uploads_used"] == index + 1
+
+        assert client.get("/api/auth/me").json()["uploads_used"] == 0
+
+    def test_cota_conta_artes_em_cartas_salvas(self, client, settings):
+        upload = client.post(
+            "/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")}
+        ).json()
+
+        for index in range(settings.max_uploads_per_user):
+            response = client.post(
+                "/api/cards",
+                json={
+                    "name": f"Carta com arte {index}",
+                    "kind": "spell",
+                    "spell_kind": "normal",
+                    "image_url": upload["url"],
+                    "image_path": upload["path"],
+                },
+            )
+            assert response.status_code == 201, response.text
+
+        assert client.get("/api/auth/me").json()["uploads_used"] == settings.max_uploads_per_user
+
+        sexta = client.post(
+            "/api/cards",
+            json={
+                "name": "Carta excedente",
+                "kind": "spell",
+                "spell_kind": "normal",
+                "image_url": upload["url"],
+                "image_path": upload["path"],
+            },
+        )
+        assert sexta.status_code == 403
+        assert sexta.json()["code"] == "quota_exceeded"
+
+    def test_upload_bloqueado_com_cota_cheia(self, client, settings):
+        upload = client.post(
+            "/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")}
+        ).json()
+        for index in range(settings.max_uploads_per_user):
+            client.post(
+                "/api/cards",
+                json={
+                    "name": f"Arte {index}",
+                    "kind": "spell",
+                    "spell_kind": "normal",
+                    "image_url": upload["url"],
+                    "image_path": upload["path"],
+                },
+            )
 
         sexto = client.post("/api/uploads", files={"file": ("sexto.png", png_bytes(), "image/png")})
 
         assert sexto.status_code == 403
         assert sexto.json()["code"] == "quota_exceeded"
 
-    def test_cota_aparece_no_me(self, client):
-        client.post("/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")})
+    def test_remover_arte_devolve_cota(self, client):
+        upload = client.post(
+            "/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")}
+        ).json()
+        card = client.post(
+            "/api/cards",
+            json={
+                "name": "Carta com arte",
+                "kind": "spell",
+                "spell_kind": "normal",
+                "image_url": upload["url"],
+                "image_path": upload["path"],
+            },
+        ).json()
+        assert client.get("/api/auth/me").json()["uploads_used"] == 1
 
-        me = client.get("/api/auth/me").json()
+        client.patch(f"/api/cards/{card['id']}", json={"image_url": "", "image_path": ""})
 
-        assert me["uploads_used"] == 1
-        assert me["uploads_limit"] == 5
+        assert client.get("/api/auth/me").json()["uploads_used"] == 0
+
+    def test_excluir_carta_devolve_cota(self, client):
+        upload = client.post(
+            "/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")}
+        ).json()
+        card = client.post(
+            "/api/cards",
+            json={
+                "name": "Carta para apagar",
+                "kind": "spell",
+                "spell_kind": "normal",
+                "image_url": upload["url"],
+                "image_path": upload["path"],
+            },
+        ).json()
+
+        assert client.delete(f"/api/cards/{card['id']}").status_code == 204
+        assert client.get("/api/auth/me").json()["uploads_used"] == 0
 
     def test_cota_e_por_duelista(self, client, other_client):
-        client.post("/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")})
+        upload = client.post(
+            "/api/uploads", files={"file": ("arte.png", png_bytes(), "image/png")}
+        ).json()
+        client.post(
+            "/api/cards",
+            json={
+                "name": "Arte do primeiro",
+                "kind": "spell",
+                "spell_kind": "normal",
+                "image_url": upload["url"],
+                "image_path": upload["path"],
+            },
+        )
 
+        assert client.get("/api/auth/me").json()["uploads_used"] == 1
         assert other_client.get("/api/auth/me").json()["uploads_used"] == 0
 
 

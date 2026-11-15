@@ -55,7 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.storage = storage
     app.state.auth = AuthService(repository, settings)
     app.state.cards = CardService(repository, storage, settings)
-    app.state.uploads = UploadService(storage, settings, repository)
+    app.state.uploads = UploadService(storage, settings)
 
     # --- middlewares ---------------------------------------------------------
     app.add_middleware(RequestContextMiddleware)

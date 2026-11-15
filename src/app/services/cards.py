@@ -14,6 +14,7 @@ from app.core.errors import (
     InvalidPayloadError,
     LimitExceededError,
     NotFoundError,
+    QuotaExceededError,
 )
 from app.core.metrics import CARD_VIEWS, CARDS_CREATED, CARDS_DELETED, CARDS_UPDATED
 from app.domain.models import Card
@@ -85,6 +86,9 @@ class CardService:
                 f"Limite de {self.settings.max_cards_per_owner} cartas por duelista atingido"
             )
 
+        if payload.image_path:
+            self._ensure_upload_quota(user_id)
+
         now = datetime.now(UTC)
         card = Card(
             id=str(uuid.uuid4()),
@@ -95,6 +99,7 @@ class CardService:
             **payload.model_dump(),
         )
         created = self.repository.create(card)
+        self.repository.sync_uploads(user_id)
         CARDS_CREATED.labels(kind=card.kind.value).inc()
         logger.info("carta_criada", extra={"card_id": card.id, "kind": card.kind.value})
         return created
@@ -119,11 +124,15 @@ class CardService:
             ) from exc
 
         previous_image = card.image_path
+        if validated.image_path and not previous_image:
+            self._ensure_upload_quota(user_id)
+
         for field in _EDITABLE_FIELDS:
             setattr(card, field, getattr(validated, field))
         card.updated_at = datetime.now(UTC)
 
         updated = self.repository.update(card)
+        self.repository.sync_uploads(user_id)
         CARDS_UPDATED.inc()
 
         if previous_image and previous_image != card.image_path:
@@ -138,10 +147,18 @@ class CardService:
             raise NotFoundError("Carta não encontrada")
         if card.image_path:
             self.storage.delete(card.image_path)
+        self.repository.sync_uploads(user_id)
         CARDS_DELETED.inc()
         logger.info("carta_removida", extra={"card_id": card.id})
 
     # --- helpers ------------------------------------------------------------
+    def _ensure_upload_quota(self, user_id: str) -> None:
+        """Bloqueia quando o duelista já tem o máximo de artes em cartas salvas."""
+        limit = self.settings.max_uploads_per_user
+        user = self.repository.sync_uploads(user_id)
+        if user is not None and user.uploads_used >= limit:
+            raise QuotaExceededError(f"Limite de {limit} artes por duelista atingido")
+
     def _owned(self, card_id: str, user_id: str) -> Card:
         card = self.repository.get(card_id)
         if card is None:
