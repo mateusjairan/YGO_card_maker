@@ -9,7 +9,6 @@ from app.config import Settings
 from app.core.errors import QuotaExceededError
 from app.core.metrics import UPLOADS
 from app.domain.models import User
-from app.repositories.base import UserRepository
 from app.services.images import process_image
 from app.storage.base import ImageStorage, StoredImage
 
@@ -23,20 +22,14 @@ class UploadOutcome:
 
 
 class UploadService:
-    def __init__(
-        self,
-        storage: ImageStorage,
-        settings: Settings,
-        repository: UserRepository,
-    ) -> None:
+    def __init__(self, storage: ImageStorage, settings: Settings) -> None:
         self.storage = storage
         self.settings = settings
-        self.repository = repository
 
     def store(self, raw: bytes, content_type: str, user: User) -> UploadOutcome:
         limit = self.settings.max_uploads_per_user
         if user.uploads_used >= limit:
-            raise QuotaExceededError(f"Limite de {limit} uploads por duelista atingido")
+            raise QuotaExceededError(f"Limite de {limit} artes por duelista atingido")
 
         webp, width, height = process_image(
             raw,
@@ -47,11 +40,11 @@ class UploadService:
         filename = f"{uuid.uuid4().hex}.webp"
         stored = self.storage.save(webp, filename=filename, content_type="image/webp")
 
-        updated = self.repository.increment_uploads(user.id)
         UPLOADS.inc()
+        # a cota só é consumida quando a arte entra numa carta salva
         return UploadOutcome(
             stored=stored,
             width=width,
             height=height,
-            uploads_used=updated.uploads_used if updated else user.uploads_used + 1,
+            uploads_used=user.uploads_used,
         )

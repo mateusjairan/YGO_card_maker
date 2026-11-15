@@ -151,9 +151,25 @@ class TestUsuarios:
         with pytest.raises(sqlite3.IntegrityError):
             repository.create_user(make_user(id="usuario-2"))
 
-    def test_incrementa_uploads(self, repository):
+    def test_sync_uploads_conta_artes_em_cartas(self, repository):
         repository.create_user(make_user())
 
-        assert repository.increment_uploads("usuario-1").uploads_used == 1
-        assert repository.increment_uploads("usuario-1").uploads_used == 2
-        assert repository.increment_uploads("nao-existe") is None
+        sem_arte = repository.create(
+            make_card(id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", slug="sem-arte")
+        )
+        assert repository.sync_uploads("usuario-1").uploads_used == 0
+
+        com_arte = repository.create(
+            make_card(
+                id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                slug="com-arte",
+                image_path="arte.webp",
+            )
+        )
+        assert repository.sync_uploads("usuario-1").uploads_used == 1
+
+        repository.delete(com_arte.id, "usuario-1")
+        assert repository.sync_uploads("usuario-1").uploads_used == 0
+
+        repository.delete(sem_arte.id, "usuario-1")
+        assert repository.sync_uploads("nao-existe") is None

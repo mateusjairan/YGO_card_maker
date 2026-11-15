@@ -72,19 +72,28 @@ as $$
      where id = p_card_id;
 $$;
 
--- Consome 1 upload da cota do duelista (o limite de 5 é regra da aplicação).
-create or replace function public.increment_user_uploads(p_user_id uuid)
+-- Recalcula a cota do duelista: conta as artes que estão em cartas salvas.
+-- (o limite de 5 é regra da aplicação; remover a arte ou a carta devolve a cota)
+drop function if exists public.increment_user_uploads(uuid);
+
+create or replace function public.sync_user_uploads(p_user_id uuid)
 returns void
 language sql
 security definer
 set search_path = public
 as $$
-    update public.users
-       set uploads_used = uploads_used + 1
-     where id = p_user_id;
+    update public.users u
+       set uploads_used = (
+           select count(*)
+             from public.cards c
+            where c.user_id = u.id
+              and c.image_path is not null
+              and c.image_path <> ''
+       )
+     where u.id = p_user_id;
 $$;
 
 revoke all on function public.increment_card_views(uuid) from public, anon, authenticated;
-revoke all on function public.increment_user_uploads(uuid) from public, anon, authenticated;
+revoke all on function public.sync_user_uploads(uuid) from public, anon, authenticated;
 grant execute on function public.increment_card_views(uuid) to service_role;
-grant execute on function public.increment_user_uploads(uuid) to service_role;
+grant execute on function public.sync_user_uploads(uuid) to service_role;

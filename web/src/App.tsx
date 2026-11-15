@@ -35,8 +35,8 @@ function QuotaBadge() {
   const full = used >= limit
 
   return (
-    <div className={`quota${full ? ' quota--full' : ''}`} title="Uploads de arte usados nesta conta">
-      <span className="quota__label">Uploads</span>
+    <div className={`quota${full ? ' quota--full' : ''}`} title="Artes em cartas salvas (a cota volta ao remover a arte)">
+      <span className="quota__label">Artes</span>
       <span className="quota__pips" aria-hidden="true">
         {Array.from({ length: limit }, (_, index) => (
           <i key={index} className={index < used ? 'on' : ''} />

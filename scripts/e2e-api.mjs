@@ -106,25 +106,71 @@ const noRarity = await call('/api/cards', {
 })
 check('raridade padrão secret', noRarity.status === 201 && noRarity.data.rarity === 'secret')
 
-// 5) cota de uploads
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
 )
-for (let i = 1; i <= 5; i += 1) {
+
+// 5) cota: upload sozinho não consome; conta artes em cartas salvas
+for (let i = 1; i <= 6; i += 1) {
   const form = new FormData()
   form.append('file', new Blob([png], { type: 'image/png' }), `arte-${i}.png`)
   const up = await call('/api/uploads', { token, method: 'POST', form })
-  check(`upload ${i}/5`, up.status === 201 && up.data.uploads_used === i, `${up.data?.width}x${up.data?.height}`)
+  check(`upload ${i} sem salvar não consome cota`, up.status === 201 && up.data.uploads_used === 0)
 }
-const sixth = new FormData()
-sixth.append('file', new Blob([png], { type: 'image/png' }), 'arte-6.png')
-const over = await call('/api/uploads', { token, method: 'POST', form: sixth })
-check('6º upload bloqueado 403', over.status === 403 && over.data.code === 'quota_exceeded')
 
-// 6) nenhuma cota devolvida ao apagar carta
-const meBefore = await call('/api/auth/me', { token })
-check('cota permanece 5/5', meBefore.data.uploads_used === 5 && meBefore.data.uploads_limit === 5)
+const draftUpload = await (async () => {
+  const form = new FormData()
+  form.append('file', new Blob([png], { type: 'image/png' }), 'arte-final.png')
+  return (await call('/api/uploads', { token, method: 'POST', form })).data
+})()
+
+const withArt = []
+for (let i = 1; i <= 5; i += 1) {
+  const response = await call('/api/cards', {
+    token,
+    method: 'POST',
+    json: {
+      name: `Arte auditada ${i}`,
+      kind: 'spell',
+      spell_kind: 'normal',
+      image_url: draftUpload.url,
+      image_path: draftUpload.path,
+    },
+  })
+  if (response.status === 201) withArt.push(response.data)
+}
+check('5 cartas com arte aceitas', withArt.length === 5)
+
+const meFull = await call('/api/auth/me', { token })
+check('cota passa a 5/5', meFull.data.uploads_used === 5 && meFull.data.uploads_limit === 5)
+
+const sixthCard = await call('/api/cards', {
+  token,
+  method: 'POST',
+  json: {
+    name: 'Carta excedente',
+    kind: 'spell',
+    spell_kind: 'normal',
+    image_url: draftUpload.url,
+    image_path: draftUpload.path,
+  },
+})
+check('6ª carta com arte bloqueada 403', sixthCard.status === 403 && sixthCard.data.code === 'quota_exceeded')
+
+const sixthUpload = new FormData()
+sixthUpload.append('file', new Blob([png], { type: 'image/png' }), 'sexto.png')
+const over = await call('/api/uploads', { token, method: 'POST', form: sixthUpload })
+check('upload bloqueado com cota cheia 403', over.status === 403 && over.data.code === 'quota_exceeded')
+
+// 6) remover a arte devolve a cota
+await call(`/api/cards/${withArt[0].id}`, {
+  token,
+  method: 'PATCH',
+  json: { image_url: '', image_path: '' },
+})
+const meAfterRemove = await call('/api/auth/me', { token })
+check('remover arte devolve a cota (4/5)', meAfterRemove.data.uploads_used === 4)
 
 // 7) posse
 const otherReg = await call('/api/auth/register', {

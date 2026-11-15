@@ -127,10 +127,21 @@ class SQLiteRepository:
             row = connection.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         return User.from_row(dict(row)) if row else None
 
-    def increment_uploads(self, user_id: str) -> User | None:
+    def sync_uploads(self, user_id: str) -> User | None:
+        """Cota = quantidade de cartas do duelista que têm arte salva."""
         with self._connect() as connection:
             connection.execute(
-                "UPDATE users SET uploads_used = uploads_used + 1 WHERE id = ?", (user_id,)
+                """
+                UPDATE users
+                   SET uploads_used = (
+                       SELECT COUNT(*) FROM cards
+                        WHERE cards.user_id = users.id
+                          AND cards.image_path IS NOT NULL
+                          AND cards.image_path <> ''
+                   )
+                 WHERE id = ?
+                """,
+                (user_id,),
             )
         return self.get_user(user_id)
 

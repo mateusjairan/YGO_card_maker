@@ -49,7 +49,7 @@ export function LoginPage() {
         <p className="auth-card__lede">
           {mode === 'login'
             ? 'Acesse com o seu e-mail para editar as suas cartas.'
-            : 'Cinco uploads de arte por conta. Escolha com carinho.'}
+            : 'Cinco artes por conta. A cota conta as artes que ficam salvas nas suas cartas.'}
         </p>
 
         <form className="auth-form" onSubmit={handleSubmit}>

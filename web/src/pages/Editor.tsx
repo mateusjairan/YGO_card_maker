@@ -204,7 +204,7 @@ export function EditorPage() {
       setToast({
         kind: 'ok',
         title: 'Arte padronizada',
-        message: `${uploaded.width}×${uploaded.height} · uploads ${uploaded.uploads_used}/${uploaded.uploads_limit}`,
+        message: `${uploaded.width}×${uploaded.height} · artes ${uploaded.uploads_used}/${uploaded.uploads_limit}`,
       })
     } catch (error) {
       setToast({ kind: 'error', title: 'Falha no upload', message: (error as Error).message })
@@ -481,7 +481,7 @@ export function EditorPage() {
                   </span>
                   <span className="dropzone__hint">
                     {quotaFull
-                      ? `${quotaUsed}/${quotaLimit} uploads usados nesta conta`
+                      ? `${quotaUsed}/${quotaLimit} artes em cartas salvas`
                       : 'PNG, JPEG ou WebP · recorte central 1:1 · até 6 MB'}
                   </span>
                 </>

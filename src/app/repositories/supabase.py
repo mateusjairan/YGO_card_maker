@@ -81,8 +81,17 @@ class SupabaseRepository:
         row = _row(response)
         return User.from_row(row) if row else None
 
-    def increment_uploads(self, user_id: str) -> User | None:
-        self.client.rpc("increment_user_uploads", {"p_user_id": user_id}).execute()
+    def sync_uploads(self, user_id: str) -> User | None:
+        response = (
+            self.client.table("cards")
+            .select("id", count="exact")
+            .eq("user_id", user_id)
+            .not_.is_("image_path", "null")
+            .neq("image_path", "")
+            .execute()
+        )
+        count = int(getattr(response, "count", 0) or 0)
+        self.client.table("users").update({"uploads_used": count}).eq("id", user_id).execute()
         return self.get_user(user_id)
 
     # --- cartas -------------------------------------------------------------
