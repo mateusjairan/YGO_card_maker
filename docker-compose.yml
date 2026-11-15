@@ -1,0 +1,49 @@
+# Sobe o projeto inteiro com: docker compose up --build
+# Front (nginx) em http://localhost:8080 · API em http://localhost:8000/docs
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ygo-card-maker-api:local
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-sqlite}
+      SQLITE_PATH: /app/data/cards.db
+      UPLOAD_DIR: /app/data/uploads
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      OWNER_KEY_SALT: ${OWNER_KEY_SALT:-dev-salt-change-me}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_BUCKET: ${SUPABASE_BUCKET:-card-images}
+    ports:
+      - "8000:8000"
+    volumes:
+      - api-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: ygo-card-maker-web:local
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  api-data:
