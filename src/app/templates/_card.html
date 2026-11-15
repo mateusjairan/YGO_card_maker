@@ -1,0 +1,47 @@
+{% import "_macros.html" as m -%}
+<article class="ygo-card" data-kind="{{ kind }}"{% if attribute %} data-attribute="{{ attribute|lower }}"{% endif %} data-holo="{{ 'on' if card.holo else 'off' }}">
+  <div class="ygo-card__surface">
+    <header class="ygo-card__header">
+      <div class="ygo-card__namebar">
+        <h1 class="ygo-card__name {{ 'is-xs' if card.name|length > 30 else ('is-sm' if card.name|length > 22 else '') }}">{{ card.name }}</h1>
+      </div>
+      <div class="ygo-card__attribute">{{ m.attribute_icon(attribute|lower if attribute else kind) }}</div>
+    </header>
+
+    {% if level.visible %}
+      {% if level.link %}
+        <div class="ygo-card__levelrow"><span class="ygo-card__linkbadge">LINK-{{ level.count }}</span></div>
+      {% else %}
+        <div class="ygo-card__levelrow" data-rank="{{ 'true' if level.rank else 'false' }}">
+          {% for _ in range(level.count) %}<span class="ygo-card__star"></span>{% endfor %}
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="ygo-card__art">
+      {% if card.image_url %}
+        <img class="ygo-card__artimg" src="{{ card.image_url }}" alt="Arte da carta {{ card.name }}">
+        <div class="ygo-card__holo"></div>
+        <div class="ygo-card__sparkle"></div>
+      {% else %}
+        <div class="ygo-card__artplaceholder">sem arte</div>
+      {% endif %}
+    </div>
+
+    <div class="ygo-card__infobox">
+      <div class="ygo-card__type"><span class="ygo-card__bracket">[</span> {{ type_line }} <span class="ygo-card__bracket">]</span></div>
+      <p class="ygo-card__desc">{{ card.description }}</p>
+      {% if stats %}
+        <div class="ygo-card__stats">
+          <span>ATK/<b>{{ stats['atk'] }}</b></span>
+          {% if 'def' in stats %}<span>DEF/<b>{{ stats['def'] }}</b></span>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    <footer class="ygo-card__footer">
+      <span>YGO Card Maker</span>
+      <span class="ygo-card__serial">{{ serial }}</span>
+    </footer>
+  </div>
+</article>
