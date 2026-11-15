@@ -61,3 +61,8 @@ Nada foi aceito sem execução:
   em `padding` + gradient.
 - A padronização de imagem começou com upscale para 1024; foi corrigida para **nunca** aumentar
   uma arte menor (só recortar e reduzir), com teste cobrindo (`test_imagem_pequena_nao_sofre_upscale`).
+- A auditoria final encontrou o export PNG quebrado: o `html-to-image` tentava ler o CSS do
+  Google Fonts (cross-origin) e estourava `SecurityError`. As fontes foram trazidas para
+  `shared/fonts/` e o E2E passou a validar os **bytes** do PNG (assinatura + 840×1224).
+- Sessão expirada deixava a UI "logada": a API agora emite `ygo:unauthorized` ao receber 401 e o
+  `SessionProvider` volta ao estado deslogado sem precisar recarregar.
