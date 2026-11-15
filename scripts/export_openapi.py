@@ -31,6 +31,7 @@ def main() -> None:
     output.write_text(
         yaml.safe_dump(schema, sort_keys=True, allow_unicode=True, width=110),
         encoding="utf-8",
+        newline="\n",
     )
     print(f"OpenAPI gerado em {output.relative_to(ROOT)} ({len(schema['paths'])} rotas)")
 
