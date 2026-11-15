@@ -1,0 +1,14 @@
+# Cloudflare Pages — proxy para a API (mesma origem, sem CORS)
+# Troque https://ygo-card-maker-api.onrender.com pela URL do seu deploy Docker.
+# Docs: https://developers.cloudflare.com/pages/configuration/redirects/
+
+/api/*          https://ygo-card-maker-api.onrender.com/api/:splat        200
+/c/*            https://ygo-card-maker-api.onrender.com/c/:splat          200
+/static/*       https://ygo-card-maker-api.onrender.com/static/:splat     200
+/media/*        https://ygo-card-maker-api.onrender.com/media/:splat      200
+/docs           https://ygo-card-maker-api.onrender.com/docs              200
+/openapi.json   https://ygo-card-maker-api.onrender.com/openapi.json      200
+/health         https://ygo-card-maker-api.onrender.com/health            200
+
+# SPA fallback (precisa ser a última regra)
+/*              /index.html                                                200
