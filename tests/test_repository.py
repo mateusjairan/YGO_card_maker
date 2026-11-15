@@ -7,8 +7,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.domain.models import Attribute, Card, CardKind, MonsterKind
-from app.repositories.sqlite import SQLiteCardRepository
+from app.domain.models import Attribute, Card, CardKind, MonsterKind, User
+from app.repositories.sqlite import SQLiteRepository
 
 
 def make_card(**overrides) -> Card:
@@ -16,7 +16,7 @@ def make_card(**overrides) -> Card:
     data = {
         "id": "11111111-1111-1111-1111-111111111111",
         "slug": "carta-teste-abc123",
-        "owner_hash": "hash-dono",
+        "user_id": "usuario-1",
         "name": "Carta Teste",
         "kind": CardKind.MONSTER,
         "monster_kind": MonsterKind.EFFECT,
@@ -31,9 +31,19 @@ def make_card(**overrides) -> Card:
     return Card(**data)
 
 
+def make_user(**overrides) -> User:
+    data = {
+        "id": "usuario-1",
+        "email": "duelista@exemplo.com",
+        "password_hash": "scrypt$1$1$1$salt$hash",
+    }
+    data.update(overrides)
+    return User(**data)
+
+
 @pytest.fixture()
-def repository(tmp_path) -> SQLiteCardRepository:
-    repo = SQLiteCardRepository(tmp_path / "repo.db")
+def repository(tmp_path) -> SQLiteRepository:
+    repo = SQLiteRepository(tmp_path / "repo.db")
     repo.setup()
     return repo
 
@@ -43,7 +53,8 @@ def test_setup_e_idempotente(repository):
     assert repository.ping() is True
 
 
-def test_cria_e_busca(repository):
+def test_cria_e_busca_carta(repository):
+    repository.create_user(make_user())
     card = repository.create(make_card())
 
     assert repository.get(card.id).name == "Carta Teste"
@@ -52,6 +63,7 @@ def test_cria_e_busca(repository):
 
 
 def test_slug_unico(repository):
+    repository.create_user(make_user())
     repository.create(make_card())
 
     with pytest.raises(sqlite3.IntegrityError):
@@ -60,18 +72,20 @@ def test_slug_unico(repository):
         )
 
 
-def test_lista_por_dono_e_conta(repository):
+def test_lista_por_usuario_e_conta(repository):
+    repository.create_user(make_user())
     repository.create(make_card())
     repository.create(
         make_card(id="33333333-3333-3333-3333-333333333333", slug="outra-abc123", name="Outra")
     )
 
-    assert len(repository.list_by_owner("hash-dono", limit=10, offset=0)) == 2
-    assert repository.count_by_owner("hash-dono") == 2
-    assert repository.list_by_owner("outro-hash", limit=10, offset=0) == []
+    assert len(repository.list_by_user("usuario-1", limit=10, offset=0)) == 2
+    assert repository.count_by_user("usuario-1") == 2
+    assert repository.list_by_user("outro-usuario", limit=10, offset=0) == []
 
 
 def test_lista_publica_respeita_visibilidade_e_busca(repository):
+    repository.create_user(make_user())
     repository.create(make_card(name="Dragão Branco", slug="dragao-branco-aaa111"))
     repository.create(
         make_card(
@@ -90,6 +104,7 @@ def test_lista_publica_respeita_visibilidade_e_busca(repository):
 
 
 def test_atualiza_carta(repository):
+    repository.create_user(make_user())
     card = repository.create(make_card())
     card.name = "Nome Novo"
     card.level = 8
@@ -102,19 +117,43 @@ def test_atualiza_carta(repository):
 
 
 def test_remove_apenas_do_dono(repository):
+    repository.create_user(make_user())
     card = repository.create(make_card())
 
-    assert repository.delete(card.id, "outro-hash") is False
+    assert repository.delete(card.id, "outro-usuario") is False
     assert repository.get(card.id) is not None
 
-    assert repository.delete(card.id, "hash-dono") is True
+    assert repository.delete(card.id, "usuario-1") is True
     assert repository.get(card.id) is None
 
 
 def test_incrementa_views(repository):
+    repository.create_user(make_user())
     card = repository.create(make_card())
 
     repository.increment_views(card.id)
     repository.increment_views(card.id)
 
     assert repository.get(card.id).views == 2
+
+
+class TestUsuarios:
+    def test_cria_e_busca_por_email(self, repository):
+        repository.create_user(make_user())
+
+        assert repository.get_user("usuario-1").email == "duelista@exemplo.com"
+        assert repository.get_user_by_email("duelista@exemplo.com").id == "usuario-1"
+        assert repository.get_user("nao-existe") is None
+
+    def test_email_unico(self, repository):
+        repository.create_user(make_user())
+
+        with pytest.raises(sqlite3.IntegrityError):
+            repository.create_user(make_user(id="usuario-2"))
+
+    def test_incrementa_uploads(self, repository):
+        repository.create_user(make_user())
+
+        assert repository.increment_uploads("usuario-1").uploads_used == 1
+        assert repository.increment_uploads("usuario-1").uploads_used == 2
+        assert repository.increment_uploads("nao-existe") is None

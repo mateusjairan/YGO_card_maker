@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError, api, shareUrl } from '../lib/api'
 import { exportCardAsPng } from '../lib/export'
 import { ATTRIBUTES, MONSTER_KINDS, RACES, SPELL_KINDS, TRAP_KINDS } from '../lib/labels'
+import { useSession } from '../lib/session'
 import type { CardDraft, CardKind, CardRecord } from '../types'
 import { KindIcon } from '../components/AttributeIcon'
 import { CardScaler } from '../components/CardScaler'
@@ -56,6 +57,7 @@ export function EditorPage() {
   const [searchParams] = useSearchParams()
   const remix = searchParams.get('remix')
   const navigate = useNavigate()
+  const { user, refresh } = useSession()
 
   const [draft, setDraft] = useState<CardDraft>({ ...DEFAULT_DRAFT })
   const [saved, setSaved] = useState<CardRecord | null>(null)
@@ -67,6 +69,14 @@ export function EditorPage() {
   const [toast, setToast] = useState<ToastMessage | null>(null)
 
   const exportRef = useRef<HTMLDivElement>(null)
+
+  // A prévia pode "atrasar" um frame em relação ao input: digitar continua fluido
+  // mesmo com a carta (blend modes) custando caro para pintar.
+  const previewDraft = useDeferredValue(draft)
+
+  const quotaLimit = user?.uploads_limit ?? 5
+  const quotaUsed = user?.uploads_used ?? 0
+  const quotaFull = quotaUsed >= quotaLimit
 
   useEffect(() => {
     let active = true
@@ -91,6 +101,36 @@ export function EditorPage() {
     }
   }, [id, remix])
 
+  useEffect(() => {
+    if (!exporting) return
+    let cancelled = false
+
+    const frame = requestAnimationFrame(() => {
+      void (async () => {
+        try {
+          const node = exportRef.current?.querySelector('.ygo-card')
+          if (node instanceof HTMLElement) {
+            await exportCardAsPng(node, draft.name || 'carta')
+            setToast({ kind: 'ok', title: 'PNG gerado', message: 'Arquivo em 840×1224 px.' })
+          }
+        } catch (error) {
+          setToast({
+            kind: 'error',
+            title: 'Falha ao exportar',
+            message: (error as Error).message,
+          })
+        } finally {
+          if (!cancelled) setExporting(false)
+        }
+      })()
+    })
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
+  }, [exporting, draft.name])
+
   const update = useCallback((patch: Partial<CardDraft>) => {
     setDraft((previous) => ({ ...previous, ...patch }))
   }, [])
@@ -112,7 +152,7 @@ export function EditorPage() {
           trap_kind: null,
         }
       }
-      const base = {
+      return {
         ...previous,
         kind,
         monster_kind: null,
@@ -124,26 +164,29 @@ export function EditorPage() {
         spell_kind: kind === 'spell' ? ('normal' as const) : null,
         trap_kind: kind === 'trap' ? ('normal' as const) : null,
       }
-      return base
     })
   }
 
   function changeMonsterKind(value: string) {
     const max = value === 'link' ? 8 : value === 'xyz' ? 13 : 12
-    setDraft((previous) => {
-      const nextLevel = Math.min(previous.level ?? 8, max)
-      const nextDefense = value === 'link' ? null : (previous.defense ?? 2000)
-      return {
-        ...previous,
-        monster_kind: value as CardDraft['monster_kind'],
-        level: nextLevel,
-        defense: nextDefense,
-      }
-    })
+    setDraft((previous) => ({
+      ...previous,
+      monster_kind: value as CardDraft['monster_kind'],
+      level: Math.min(previous.level ?? 8, max),
+      defense: value === 'link' ? null : (previous.defense ?? 2000),
+    }))
   }
 
   async function handleFile(file: File | undefined) {
     if (!file) return
+    if (quotaFull) {
+      setToast({
+        kind: 'error',
+        title: 'Cota de uploads esgotada',
+        message: `Você já usou ${quotaLimit} de ${quotaLimit} uploads nesta conta.`,
+      })
+      return
+    }
     if (!file.type.startsWith('image/')) {
       setToast({ kind: 'error', title: 'Arquivo inválido', message: 'Envie uma imagem PNG, JPEG ou WebP.' })
       return
@@ -152,11 +195,17 @@ export function EditorPage() {
       setToast({ kind: 'error', title: 'Imagem grande demais', message: 'O limite é 6 MB.' })
       return
     }
+
     setUploading(true)
     try {
       const uploaded = await api.uploadImage(file)
       update({ image_url: uploaded.url, image_path: uploaded.path })
-      setToast({ kind: 'ok', title: 'Arte enviada', message: `${uploaded.width}×${uploaded.height}px` })
+      await refresh()
+      setToast({
+        kind: 'ok',
+        title: 'Arte padronizada',
+        message: `${uploaded.width}×${uploaded.height} · uploads ${uploaded.uploads_used}/${uploaded.uploads_limit}`,
+      })
     } catch (error) {
       setToast({ kind: 'error', title: 'Falha no upload', message: (error as Error).message })
     } finally {
@@ -194,24 +243,6 @@ export function EditorPage() {
       setToast({ kind: 'error', title: 'Não foi possível salvar', message })
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleExport() {
-    const node = exportRef.current?.querySelector('.ygo-card')
-    if (!(node instanceof HTMLElement)) return
-    setExporting(true)
-    try {
-      await exportCardAsPng(node, draft.name || 'carta')
-      setToast({ kind: 'ok', title: 'PNG gerado', message: 'Arquivo salvo em 840×1224 px.' })
-    } catch (error) {
-      setToast({
-        kind: 'error',
-        title: 'Falha ao exportar',
-        message: `Tente novamente. ${(error as Error).message}`,
-      })
-    } finally {
-      setExporting(false)
     }
   }
 
@@ -296,7 +327,13 @@ export function EditorPage() {
 
             <div className="field" style={{ marginTop: 18 }}>
               <span className="field__label">
-                <span>{isMonster ? 'Categoria do monstro' : draft.kind === 'spell' ? 'Tipo de magia' : 'Tipo de armadilha'}</span>
+                <span>
+                  {isMonster
+                    ? 'Categoria do monstro'
+                    : draft.kind === 'spell'
+                      ? 'Tipo de magia'
+                      : 'Tipo de armadilha'}
+                </span>
               </span>
               {isMonster ? (
                 <Chips
@@ -387,11 +424,7 @@ export function EditorPage() {
                   <span>{levelLabel}</span>
                   <span className="field__hint">clique nas estrelas · máx. {maxLevel}</span>
                 </span>
-                <Stars
-                  value={draft.level}
-                  max={maxLevel}
-                  onChange={(value) => update({ level: value })}
-                />
+                <Stars value={draft.level} max={maxLevel} onChange={(value) => update({ level: value })} />
               </div>
 
               <div className="input-row" style={{ marginTop: 4 }}>
@@ -434,7 +467,7 @@ export function EditorPage() {
                 <div className="dropzone__preview">
                   <img src={draft.image_url} alt="" />
                   <div>
-                    <div className="dropzone__title">Arte enviada</div>
+                    <div className="dropzone__title">Arte padronizada</div>
                     <div className="dropzone__hint">Clique ou arraste para substituir</div>
                   </div>
                 </div>
@@ -444,14 +477,19 @@ export function EditorPage() {
                     ✦
                   </span>
                   <span className="dropzone__title">
-                    {uploading ? 'Enviando...' : 'Arraste a imagem aqui'}
+                    {uploading ? 'Enviando…' : quotaFull ? 'Cota de uploads esgotada' : 'Arraste a imagem aqui'}
                   </span>
-                  <span className="dropzone__hint">PNG, JPEG ou WebP · até 6 MB · recorte automático</span>
+                  <span className="dropzone__hint">
+                    {quotaFull
+                      ? `${quotaUsed}/${quotaLimit} uploads usados nesta conta`
+                      : 'PNG, JPEG ou WebP · recorte central 1:1 · até 6 MB'}
+                  </span>
                 </>
               )}
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
+                disabled={quotaFull}
                 onChange={(event) => void handleFile(event.target.files?.[0])}
                 aria-label="Enviar arte"
               />
@@ -482,7 +520,9 @@ export function EditorPage() {
             <Field
               label="Descrição / efeito"
               counter={
-                <span className={`counter${draft.description.length > MAX_DESCRIPTION ? ' counter--warn' : ''}`}>
+                <span
+                  className={`counter${draft.description.length > MAX_DESCRIPTION ? ' counter--warn' : ''}`}
+                >
                   {draft.description.length}/{MAX_DESCRIPTION}
                 </span>
               }
@@ -511,7 +551,7 @@ export function EditorPage() {
               <div className="skeleton" style={{ width: '100%', height: 612 }} />
             ) : (
               <CardScaler maxWidth={420}>
-                <YgoCard card={draft} />
+                <YgoCard card={previewDraft} />
               </CardScaler>
             )}
           </div>
@@ -523,10 +563,10 @@ export function EditorPage() {
               onClick={() => void handleSave()}
               disabled={saving || loading}
             >
-              {saving ? 'Salvando...' : saved ? 'Salvar alterações' : 'Salvar carta'}
+              {saving ? 'Salvando…' : saved ? 'Salvar alterações' : 'Salvar carta'}
             </button>
-            <button type="button" className="btn" onClick={() => void handleExport()} disabled={exporting}>
-              {exporting ? 'Gerando...' : 'Baixar PNG'}
+            <button type="button" className="btn" onClick={() => setExporting(true)} disabled={exporting}>
+              {exporting ? 'Gerando…' : 'Baixar PNG'}
             </button>
             <button type="button" className="btn" onClick={() => void handleCopyLink()} disabled={!saved}>
               Copiar link
@@ -548,15 +588,17 @@ export function EditorPage() {
                 Carta salva · <Link to="/minhas">ver minhas cartas</Link>
               </>
             ) : (
-              'A prévia é atualizada em tempo real. Salve para gerar o link público.'
+              'A prévia acompanha o seu texto. Salve para gerar o link público.'
             )}
           </p>
         </aside>
       </div>
 
-      <div className="export-stage" ref={exportRef} aria-hidden="true">
-        <YgoCard card={draft} />
-      </div>
+      {exporting && (
+        <div className="export-stage" ref={exportRef} aria-hidden="true">
+          <YgoCard card={draft} />
+        </div>
+      )}
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>

@@ -41,7 +41,10 @@ class Settings(BaseSettings):
     supabase_bucket: str = "card-images"
 
     # --- regras de negócio ---------------------------------------------------
-    owner_key_salt: str = "dev-salt-change-me"
+    secret_key: str = "dev-secret-change-me-please-with-32-bytes-min"
+    access_token_ttl_minutes: int = 60 * 24 * 7
+    max_uploads_per_user: int = 5
+    image_output_px: int = 1024
     max_upload_mb: int = 6
     max_cards_per_owner: int = 200
 

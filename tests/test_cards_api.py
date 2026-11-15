@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from tests.conftest import OTHER_OWNER_KEY
-
 
 class TestCreate:
     def test_cria_carta_de_monstro(self, client, monster_payload):
@@ -35,15 +33,6 @@ class TestCreate:
         assert response.status_code == 422
         assert response.json()["code"] == "validation_error"
 
-    def test_sem_chave_de_dono_retorna_401(self, client, monster_payload):
-        response = client.post("/api/cards", json=monster_payload, headers={"X-Owner-Key": ""})
-        assert response.status_code == 401
-        assert response.json()["code"] == "unauthorized"
-
-    def test_chave_curta_retorna_401(self, client, monster_payload):
-        response = client.post("/api/cards", json=monster_payload, headers={"X-Owner-Key": "curta"})
-        assert response.status_code == 401
-
     def test_limite_de_cartas_por_duelista(self, client, monster_payload, settings):
         for index in range(settings.max_cards_per_owner):
             payload = {**monster_payload, "name": f"Carta {index}"}
@@ -65,10 +54,12 @@ class TestRead:
         assert body["limit"] == 50
         assert [item["id"] for item in body["items"]] == [created["id"]]
 
-    def test_minhas_cartas_nao_vaza_para_outro_dono(self, client, monster_payload):
+    def test_minhas_cartas_nao_vaza_para_outro_duelista(
+        self, client, other_client, monster_payload
+    ):
         client.post("/api/cards", json=monster_payload)
 
-        response = client.get("/api/cards/mine", headers={"X-Owner-Key": OTHER_OWNER_KEY})
+        response = other_client.get("/api/cards/mine")
 
         assert response.status_code == 200
         assert response.json()["items"] == []
@@ -146,14 +137,10 @@ class TestUpdateAndDelete:
         assert response.status_code == 422
         assert response.json()["code"] == "invalid_payload"
 
-    def test_outro_dono_nao_pode_editar(self, client, monster_payload):
+    def test_outro_duelista_nao_pode_editar(self, client, other_client, monster_payload):
         created = client.post("/api/cards", json=monster_payload).json()
 
-        response = client.patch(
-            f"/api/cards/{created['id']}",
-            json={"name": "invadida"},
-            headers={"X-Owner-Key": OTHER_OWNER_KEY},
-        )
+        response = other_client.patch(f"/api/cards/{created['id']}", json={"name": "invadida"})
 
         assert response.status_code == 403
         assert response.json()["code"] == "forbidden"
@@ -166,12 +153,10 @@ class TestUpdateAndDelete:
         assert response.status_code == 204
         assert client.get(f"/api/cards/{created['id']}").status_code == 404
 
-    def test_outro_dono_nao_pode_remover(self, client, monster_payload):
+    def test_outro_duelista_nao_pode_remover(self, client, other_client, monster_payload):
         created = client.post("/api/cards", json=monster_payload).json()
 
-        response = client.delete(
-            f"/api/cards/{created['id']}", headers={"X-Owner-Key": OTHER_OWNER_KEY}
-        )
+        response = other_client.delete(f"/api/cards/{created['id']}")
 
         assert response.status_code == 403
         assert client.get(f"/api/cards/{created['id']}").status_code == 200

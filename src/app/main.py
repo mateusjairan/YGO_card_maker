@@ -13,12 +13,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api.routes import cards, pages, system, uploads
+from app.api.routes import auth, cards, pages, system, uploads
 from app.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.logging import RequestContextMiddleware, configure_logging
 from app.core.metrics import setup_metrics
 from app.repositories.factory import build_repository
+from app.services.auth import AuthService
 from app.services.cards import CardService
 from app.services.uploads import UploadService
 from app.storage.factory import build_image_storage
@@ -52,8 +53,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.repository = repository
     app.state.storage = storage
+    app.state.auth = AuthService(repository, settings)
     app.state.cards = CardService(repository, storage, settings)
-    app.state.uploads = UploadService(storage, settings)
+    app.state.uploads = UploadService(storage, settings, repository)
 
     # --- middlewares ---------------------------------------------------------
     app.add_middleware(RequestContextMiddleware)
@@ -92,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # --- rotas ---------------------------------------------------------------
     app.include_router(system.router)
+    app.include_router(auth.router)
     app.include_router(cards.router)
     app.include_router(uploads.router)
     app.include_router(pages.router)

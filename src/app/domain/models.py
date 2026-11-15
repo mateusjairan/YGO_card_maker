@@ -57,7 +57,7 @@ class Card:
 
     id: str
     slug: str
-    owner_hash: str
+    user_id: str
     name: str
     kind: CardKind
     description: str = ""
@@ -96,7 +96,7 @@ class Card:
         return cls(
             id=row["id"],
             slug=row["slug"],
-            owner_hash=row["owner_hash"],
+            user_id=row["user_id"],
             name=row["name"],
             kind=CardKind(row["kind"]),
             description=row.get("description") or "",
@@ -129,3 +129,33 @@ def _as_datetime(value: Any) -> datetime:
         except ValueError:  # pragma: no cover - defensivo
             pass
     return datetime.now(UTC)
+
+
+@dataclass(slots=True)
+class User:
+    """Duelista autenticado por e-mail."""
+
+    id: str
+    email: str
+    password_hash: str
+    uploads_used: int = 0
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+    def to_row(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "password_hash": self.password_hash,
+            "uploads_used": self.uploads_used,
+            "created_at": self.created_at.isoformat(),
+        }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> User:
+        return cls(
+            id=row["id"],
+            email=row["email"],
+            password_hash=row["password_hash"],
+            uploads_used=int(row.get("uploads_used") or 0),
+            created_at=_as_datetime(row.get("created_at")),
+        )

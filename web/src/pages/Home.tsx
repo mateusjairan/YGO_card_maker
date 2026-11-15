@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useSession } from '../lib/session'
 import { DEMO_CARD } from '../lib/demo'
 import type { CardRecord } from '../types'
 import { CardScaler } from '../components/CardScaler'
@@ -23,6 +24,7 @@ const FEATURES = [
 
 export function HomePage() {
   const [recent, setRecent] = useState<CardRecord[]>([])
+  const { user } = useSession()
 
   useEffect(() => {
     let active = true
@@ -54,10 +56,10 @@ export function HomePage() {
             compartilhe um link com prévia para mandar no grupo.
           </p>
           <div className="hero__actions">
-            <Link className="btn btn--primary" to="/criar">
+            <Link className="btn btn--primary" to={user ? '/criar' : '/entrar'}>
               Criar minha carta
             </Link>
-            <Link className="btn" to="/minhas">
+            <Link className="btn" to={user ? '/minhas' : '/entrar'}>
               Minhas cartas
             </Link>
           </div>

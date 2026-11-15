@@ -3,19 +3,16 @@
 from __future__ import annotations
 
 from app.config import Settings
-from app.repositories.base import CardRepository
-from app.repositories.sqlite import SQLiteCardRepository
-from app.repositories.supabase import SupabaseCardRepository
+from app.repositories.sqlite import SQLiteRepository
+from app.repositories.supabase import SupabaseRepository
 
 
-def build_repository(settings: Settings) -> CardRepository:
+def build_repository(settings: Settings) -> SQLiteRepository | SupabaseRepository:
     """Cria o repositório configurado e garante o schema local."""
     if settings.storage_backend.lower() == "supabase":
-        repository: CardRepository = SupabaseCardRepository(
-            settings.supabase_url, settings.supabase_service_role_key
-        )
+        repository = SupabaseRepository(settings.supabase_url, settings.supabase_service_role_key)
     else:
-        repository = SQLiteCardRepository(settings.sqlite_path)
+        repository = SQLiteRepository(settings.sqlite_path)
 
     repository.setup()
     return repository

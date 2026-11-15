@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { CardDraft } from '../types'
 import { levelInfo, serialNumber, typeLine } from '../lib/labels'
 import { AttributeIcon } from './AttributeIcon'
@@ -10,7 +11,7 @@ interface YgoCardProps {
  * Renderizador da carta. O markup e as classes espelham
  * src/app/templates/_card.html (página de compartilhamento no servidor).
  */
-export function YgoCard({ card }: YgoCardProps) {
+export const YgoCard = memo(function YgoCard({ card }: YgoCardProps) {
   const attrKey = card.kind === 'monster' ? (card.attribute ?? 'light') : card.kind
   const level = levelInfo(card)
   const showStats = card.kind === 'monster'
@@ -49,7 +50,14 @@ export function YgoCard({ card }: YgoCardProps) {
 
         <div className="ygo-card__art">
           {card.image_url ? (
-            <img className="ygo-card__artimg" src={card.image_url} alt="" draggable={false} />
+            <img
+              className="ygo-card__artimg"
+              src={card.image_url}
+              alt=""
+              draggable={false}
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <div className="ygo-card__artplaceholder">sem arte</div>
           )}
@@ -91,3 +99,4 @@ export function YgoCard({ card }: YgoCardProps) {
     </article>
   )
 }
+)

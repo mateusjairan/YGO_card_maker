@@ -1,5 +1,12 @@
-import type { CardDraft, CardListResponse, CardRecord, UploadResponse } from '../types'
-import { getOwnerKey } from './owner'
+import type {
+  AuthResponse,
+  CardDraft,
+  CardListResponse,
+  CardRecord,
+  UploadResponse,
+  User,
+} from '../types'
+import { clearToken, getToken, setToken } from './token'
 
 const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
@@ -21,7 +28,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   const isFormData = init.body instanceof FormData
   if (!isFormData && init.body !== undefined) headers.set('Content-Type', 'application/json')
-  headers.set('X-Owner-Key', getOwnerKey())
+
+  const token = getToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
 
   let response: Response
   try {
@@ -41,6 +50,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
+    if (response.status === 401) clearToken()
     const data = (payload ?? {}) as { detail?: unknown; code?: string; errors?: unknown }
     const detail =
       typeof data.detail === 'string'
@@ -56,6 +66,28 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   health: () => request<{ status: string }>('/health'),
+
+  register: (email: string, password: string) =>
+    request<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }).then((response) => {
+      setToken(response.access_token)
+      return response
+    }),
+
+  login: (email: string, password: string) =>
+    request<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }).then((response) => {
+      setToken(response.access_token)
+      return response
+    }),
+
+  me: () => request<User>('/api/auth/me'),
+
+  logout: () => clearToken(),
 
   listPublic: (limit = 8) => request<CardListResponse>(`/api/cards?limit=${limit}`),
 

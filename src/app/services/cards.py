@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -45,11 +44,6 @@ _EDITABLE_FIELDS = (
 )
 
 
-def hash_owner_key(owner_key: str, salt: str) -> str:
-    """Nunca guardamos a chave do dono em texto puro, apenas o hash."""
-    return hashlib.sha256(f"{salt}:{owner_key}".encode()).hexdigest()
-
-
 class CardService:
     def __init__(
         self,
@@ -78,16 +72,15 @@ class CardService:
             card.views += 1
         return card
 
-    def list_mine(self, owner_key: str, limit: int, offset: int) -> list[Card]:
-        return self.repository.list_by_owner(self._owner_hash(owner_key), limit, offset)
+    def list_mine(self, user_id: str, limit: int, offset: int) -> list[Card]:
+        return self.repository.list_by_user(user_id, limit, offset)
 
     def list_public(self, limit: int, offset: int, query: str | None = None) -> list[Card]:
         return self.repository.list_public(limit, offset, query)
 
     # --- comandos -----------------------------------------------------------
-    def create(self, payload: CardWrite, owner_key: str) -> Card:
-        owner_hash = self._owner_hash(owner_key)
-        if self.repository.count_by_owner(owner_hash) >= self.settings.max_cards_per_owner:
+    def create(self, payload: CardWrite, user_id: str) -> Card:
+        if self.repository.count_by_user(user_id) >= self.settings.max_cards_per_owner:
             raise LimitExceededError(
                 f"Limite de {self.settings.max_cards_per_owner} cartas por duelista atingido"
             )
@@ -96,21 +89,18 @@ class CardService:
         card = Card(
             id=str(uuid.uuid4()),
             slug=self._unique_slug(payload.name),
-            owner_hash=owner_hash,
+            user_id=user_id,
             created_at=now,
             updated_at=now,
             **payload.model_dump(),
         )
         created = self.repository.create(card)
         CARDS_CREATED.labels(kind=card.kind.value).inc()
-        logger.info(
-            "carta_criada",
-            extra={"card_id": card.id, "kind": card.kind.value, "owner": owner_hash[:12]},
-        )
+        logger.info("carta_criada", extra={"card_id": card.id, "kind": card.kind.value})
         return created
 
-    def update(self, card_id: str, payload: CardPatch, owner_key: str) -> Card:
-        card = self._owned(card_id, owner_key)
+    def update(self, card_id: str, payload: CardPatch, user_id: str) -> Card:
+        card = self._owned(card_id, user_id)
         changes = payload.model_dump(exclude_unset=True)
         merged = {field: getattr(card, field) for field in _EDITABLE_FIELDS}
 
@@ -142,9 +132,9 @@ class CardService:
         logger.info("carta_atualizada", extra={"card_id": card.id})
         return updated
 
-    def delete(self, card_id: str, owner_key: str) -> None:
-        card = self._owned(card_id, owner_key)
-        if not self.repository.delete(card.id, card.owner_hash):
+    def delete(self, card_id: str, user_id: str) -> None:
+        card = self._owned(card_id, user_id)
+        if not self.repository.delete(card.id, user_id):
             raise NotFoundError("Carta não encontrada")
         if card.image_path:
             self.storage.delete(card.image_path)
@@ -152,14 +142,11 @@ class CardService:
         logger.info("carta_removida", extra={"card_id": card.id})
 
     # --- helpers ------------------------------------------------------------
-    def _owner_hash(self, owner_key: str) -> str:
-        return hash_owner_key(owner_key, self.settings.owner_key_salt)
-
-    def _owned(self, card_id: str, owner_key: str) -> Card:
+    def _owned(self, card_id: str, user_id: str) -> Card:
         card = self.repository.get(card_id)
         if card is None:
             raise NotFoundError("Carta não encontrada")
-        if card.owner_hash != self._owner_hash(owner_key):
+        if card.user_id != user_id:
             raise ForbiddenError()
         return card
 

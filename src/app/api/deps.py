@@ -1,40 +1,29 @@
-"""Dependências compartilhadas das rotas."""
+"""Dependências compartilhadas das rotas (sessão, serviços)."""
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Header, Request
+from fastapi import Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import Settings, get_settings
 from app.core.errors import UnauthorizedError
+from app.core.security import decode_access_token
+from app.domain.models import User
+from app.services.auth import AuthService
 from app.services.cards import CardService
 from app.services.uploads import UploadService
 
-MIN_OWNER_KEY_LENGTH = 16
-MAX_OWNER_KEY_LENGTH = 128
+bearer_scheme = HTTPBearer(auto_error=False, description="Token JWT retornado por /api/auth/login")
 
 
 def settings_dep() -> Settings:
     return get_settings()
 
 
-def owner_key(
-    x_owner_key: Annotated[str | None, Header(alias="X-Owner-Key")] = None,
-) -> str:
-    """Identidade anônima do duelista, gerada no navegador e guardada localmente.
-
-    Não é login: é uma chave aleatória que prova a posse da carta. O servidor
-    persiste apenas o hash (sha256 + salt).
-    """
-    if not x_owner_key or not (
-        MIN_OWNER_KEY_LENGTH <= len(x_owner_key.strip()) <= MAX_OWNER_KEY_LENGTH
-    ):
-        raise UnauthorizedError(
-            f"Envie o cabeçalho X-Owner-Key com {MIN_OWNER_KEY_LENGTH} a "
-            f"{MAX_OWNER_KEY_LENGTH} caracteres"
-        )
-    return x_owner_key.strip()
+def get_auth_service(request: Request) -> AuthService:
+    return request.app.state.auth
 
 
 def get_card_service(request: Request) -> CardService:
@@ -43,3 +32,19 @@ def get_card_service(request: Request) -> CardService:
 
 def get_upload_service(request: Request) -> UploadService:
     return request.app.state.uploads
+
+
+def current_user(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> User:
+    """Resolve o duelista a partir do `Authorization: Bearer <jwt>`."""
+    if credentials is None or not credentials.credentials:
+        raise UnauthorizedError("Faça login para continuar")
+
+    settings: Settings = request.app.state.settings
+    user_id = decode_access_token(credentials.credentials, settings.secret_key)
+    if user_id is None:
+        raise UnauthorizedError("Sessão expirada. Entre novamente.")
+
+    return request.app.state.auth.get_user(user_id)
