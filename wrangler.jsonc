@@ -1,0 +1,16 @@
+{
+  // Publicação como Worker (opcional).
+  // No Cloudflare Pages este arquivo é ignorado: lá vale o web/public/_redirects.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ygo-card-maker",
+  "main": "workers/proxy.js",
+  "compatibility_date": "2026-11-16",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+}
