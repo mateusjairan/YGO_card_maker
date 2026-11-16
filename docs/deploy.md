@@ -28,7 +28,17 @@ origem só**: sem CORS, link curto `/c/{slug}` e Open Graph funcionando.
 
    Ou cole, nesta ordem, `supabase/migrations/20261115000000_init.sql` e
    `20261115000100_storage.sql` no SQL Editor.
-3. Confira no dashboard:
+3. **Atalho**: o script valida as chaves, aplica as migrations e escreve o `.env`:
+
+   ```bash
+   python scripts/setup-supabase.py \
+     --url https://SEU-REF.supabase.co \
+     --service-key "$SUPABASE_SERVICE_ROLE_KEY" \
+     --access-token "$SUPABASE_ACCESS_TOKEN"   # opcional: aplica as migrations
+   ```
+
+   Ele também detecta se você colou a `anon` key por engano e avisa se faltar tabela/bucket.
+4. Confira no dashboard:
    - `public.users` e `public.cards` existem e estão com **RLS habilitado**;
    - funções `increment_card_views` e `sync_user_uploads` criadas;
    - bucket `card-images` **público** (leitura) com limite de 6 MB.
