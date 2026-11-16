@@ -132,6 +132,9 @@ python scripts/audit.py
 # E2E da API contra uma API em execução (auth, cota, posse, XSS, CORS)
 node scripts/e2e-api.mjs http://127.0.0.1:8000
 
+# Limpa contas/cartas de teste e imagens órfãs do banco local
+python scripts/cleanup-db.py
+
 # Lint e formatação Python
 ruff check src tests
 ruff format --check src tests
