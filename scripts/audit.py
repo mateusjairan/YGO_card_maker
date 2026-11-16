@@ -32,6 +32,8 @@ required = [
     "docs/openapi.yaml",
     "docs/desempenho.md",
     "docs/ia.md",
+    "docs/deploy.md",
+    "render.yaml",
     "load/k6-smoke.js",
     "tests/conftest.py",
     "supabase/migrations/20261115000000_init.sql",

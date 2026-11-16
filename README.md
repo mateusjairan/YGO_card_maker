@@ -303,30 +303,33 @@ apenas traduzem HTTP.
 4. Gere os segredos: `SECRET_KEY=$(openssl rand -hex 32)`.
 
 As migrations criam `public.users` (`id`, `email` único, `password_hash`, `uploads_used`), a
-tabela `cards` com `user_id` e a função `increment_user_uploads`. Com `STORAGE_BACKEND=supabase`
+tabela `cards` com `user_id` e a função `sync_user_uploads`. Com `STORAGE_BACKEND=supabase`
 a API passa a usar PostgREST e o Storage; nada muda no frontend.
 
 ## Deploy
 
-**Frontend — Cloudflare Pages (free tier):**
+Guia completo, com validação e troubleshooting: **[docs/deploy.md](docs/deploy.md)**.
 
-```bash
-cd web
-pnpm build
-npx wrangler pages deploy dist --project-name ygo-card-maker
+```mermaid
+flowchart LR
+    U[Navegador] -->|HTTPS| CF[Cloudflare Pages<br/>SPA + proxy]
+    CF -->|/api /c /static /media| API[Render<br/>FastAPI em Docker]
+    API --> DB[(Supabase Postgres)]
+    API --> ST[(Supabase Storage)]
 ```
 
-O arquivo `web/public/_redirects` faz o proxy de `/api`, `/c`, `/media`, `/static`, `/docs` e
-`/openapi.json` para a API na mesma origem — sem CORS e com links curtos. **Troque a URL de
-exemplo pela URL do seu deploy** antes de publicar.
+- **API — Render:** o repositório tem [`render.yaml`](render.yaml) (Blueprint). New → Blueprint →
+  selecione o repo; preencha `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PUBLIC_BASE_URL` e
+  `FRONTEND_BASE_URL`. Health check em `/health`.
+- **Front — Cloudflare Pages:** root `web`, build `pnpm build`, saída `dist`, `NODE_VERSION=22`.
+  `web/public/_redirects` faz o proxy de `/api`, `/c`, `/media`, `/static` e `/docs` para a API na
+  mesma origem (sem CORS, links curtos e Open Graph real). **Troque a URL de exemplo** pela URL do
+  seu serviço no Render antes de publicar.
+- **Banco/Storage — Supabase:** migrations acima; a `service_role` fica só no Render.
+- **Alternativa 100% Docker:** `docker compose up -d --build` em qualquer VPS (o nginx já faz o
+  proxy da API, então o front e a API ficam no mesmo domínio).
 
-**API — Render (Docker, free tier):** novo Web Service a partir do repositório, runtime Docker,
-health check `/health`; variáveis conforme `.env.example`.
-
-**Banco/Storage — Supabase:** migrations acima; a `service_role` fica só no Render.
-
-**Alternativa 100% Docker:** `docker compose up -d --build` em qualquer VPS (o nginx já faz o
-proxy da API, então o front e a API ficam no mesmo domínio).
+Validação depois do deploy: `node scripts/e2e-api.mjs https://sua-api.onrender.com`.
 
 ## Observabilidade e SLO
 

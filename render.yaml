@@ -1,0 +1,45 @@
+# Blueprint do Render — sobe a API com o Dockerfile do repositório.
+# Uso: Render Dashboard > New > Blueprint > selecione este repositório.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: ygo-card-maker-api
+    runtime: docker
+    plan: free # troque para "starter" se quiser evitar o cold start
+    region: oregon # ohio/oregon ficam razoáveis para o Brasil
+    branch: prod # deploy automático a partir da branch de produção
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_FORMAT
+        value: json
+      - key: LOG_LEVEL
+        value: INFO
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false # preencha no dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # segredo: só no Render
+      - key: SUPABASE_BUCKET
+        value: card-images
+      - key: SECRET_KEY
+        generateValue: true # o Render gera um segredo forte
+      - key: PUBLIC_BASE_URL
+        sync: false # https://SEU-SERVICO.onrender.com
+      - key: FRONTEND_BASE_URL
+        sync: false # https://SEU-PROJETO.pages.dev
+      - key: CORS_ORIGINS
+        sync: false # a URL do Pages
+      - key: MAX_UPLOADS_PER_USER
+        value: "5"
+      - key: IMAGE_OUTPUT_PX
+        value: "1024"
+      - key: MAX_UPLOAD_MB
+        value: "6"
+      - key: MAX_CARDS_PER_OWNER
+        value: "200"
