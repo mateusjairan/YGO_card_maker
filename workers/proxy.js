@@ -11,7 +11,12 @@
  *   - GET/HEAD ganham uma segunda tentativa quando o origin responde 502/503/504
  *     (sintoma de instância ainda subindo);
  *   - se mesmo assim falhar, /api/* devolve JSON `api_waking` em vez de um 502
- *     sem corpo, e o front mostra uma mensagem compreensível.
+ *     sem corpo, e o front mostra uma mensagem compreensível;
+ *   - um Cron Trigger (`scheduled`) pinga /health/live a cada 10 min para a
+ *     instância não hibernar. O cron do Cloudflare é pontual e publica junto com
+ *     este Worker (o workflow do GitHub em .github/workflows/keepalive.yml fica
+ *     como reserva, porque o cron do Actions pode atrasar e pode ser descartado
+ *     em horário de pico).
  */
 
 const API_ORIGIN = 'https://ygo-card-maker.onrender.com'
@@ -30,8 +35,37 @@ const PROXIED = [
 
 const RETRYABLE = new Set([502, 503, 504])
 const RETRY_DELAY_MS = 2000
+const KEEPALIVE_PATH = '/health/live'
+// marcador para conferir em produção qual versão do Worker está no ar
+const WORKER_VERSION = 'cron-2'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Hora em America/Sao_Paulo: UTC-3 o ano todo (sem horário de verão desde 2019). */
+function brazilHour(date) {
+  return (date.getUTCHours() + 21) % 24
+}
+
+/**
+ * O Render dorme após ~15 min ociosos. Pingar 24/7 consome 720–744 h/mês das 750
+ * gratuitas (sem margem para deploys), então o keep-alive cobre 06:00–23:59 de
+ * Brasília (~540 h/mês): quem entra de madrugada paga o cold start, mas o front
+ * avisa "Acordando a API".
+ */
+export function keepaliveDue(now = new Date()) {
+  return brazilHour(now) >= 6
+}
+
+async function pingKeepalive() {
+  const started = Date.now()
+  const response = await fetch(`${API_ORIGIN}${KEEPALIVE_PATH}`, {
+    headers: { 'user-agent': 'ygo-card-maker-keepalive/2.0' },
+    signal: AbortSignal.timeout(75_000),
+  })
+  const body = (await response.text()).slice(0, 120)
+  console.log(`keepalive http=${response.status} ms=${Date.now() - started} ${body}`)
+  return response.ok
+}
 
 function wakingResponse() {
   return new Response(
@@ -79,6 +113,13 @@ async function proxy(request, url) {
     return wakingResponse()
   }
 
+  // carimba a versão só no /health/live (usado para validar o deploy do Worker)
+  if (url.pathname === KEEPALIVE_PATH) {
+    const marked = new Response(response.body, response)
+    marked.headers.set('x-ygo-worker', WORKER_VERSION)
+    return marked
+  }
+
   return response
 }
 
@@ -91,5 +132,25 @@ export default {
     }
 
     return env.ASSETS.fetch(request)
+  },
+
+  /**
+   * Cron Trigger configurado em wrangler.jsonc (a cada 10 minutos).
+   * Mantém a API do Render acordada dentro da janela 06h–24h de Brasília.
+   */
+  async scheduled(controller) {
+    const scheduledAt = new Date(controller?.scheduledTime ?? Date.now())
+
+    if (!keepaliveDue(scheduledAt)) {
+      console.log(`keepalive_skip hora_brt=${brazilHour(scheduledAt)}`)
+      return
+    }
+
+    try {
+      await pingKeepalive()
+    } catch (error) {
+      // não relança: erro de rede no keep-alive não deve virar retry infinito
+      console.log(`keepalive_erro ${String(error)}`)
+    }
   },
 }

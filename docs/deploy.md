@@ -152,23 +152,32 @@ não deixar dormir e tornar o sono indolor para quem usa o site.
 Use **`/health/live`**, não `/health`: `/health/live` responde 200 sem consultar o Supabase, então
 um ping a cada 10 min não gasta conexões do banco nem marca a instância como doente.
 
-- **cron-job.org / UptimeRobot (mais confiável):** monitor HTTP GET em
+- **Cron Trigger do Cloudflare (principal, já configurado):** `wrangler.jsonc` declara
+  `triggers.crons` e `workers/proxy.js` tem o handler `scheduled`, que pinga `/health/live` a
+  cada 10 min dentro da janela 06h–24h de Brasília. Publica junto com o Worker (Workers Builds),
+  é pontual e não depende de minutos do GitHub. Depois do deploy, a Cloudflare pode levar até
+  15 min para propagar o Cron Trigger; confira em *Workers & Pages → seu Worker → Settings →
+  Triggers → Cron Triggers* (e *View events* para o histórico). Para saber se o Worker novo já
+  está no ar: `curl -sI https://SEU-SITE/health/live | grep x-ygo-worker` → `cron-2`.
+- **GitHub Actions (reserva):** o workflow [`.github/workflows/keepalive.yml`](../.github/workflows/keepalive.yml)
+  repete o ping a cada 10 min. O cron do GitHub atrasa (principalmente no começo da hora) e pode
+  descartar execuções em pico — por isso é só segunda linha de defesa. Configure a variável
+  `API_BASE_URL` (Settings → Secrets and variables → Actions → Variables) e use *Run workflow*
+  para testar na hora.
+- **cron-job.org / UptimeRobot (alternativa manual):** monitor HTTP GET em
   `https://SEU-SERVICO.onrender.com/health/live`, a cada 10 min, timeout de 60 s. O Render
   hiberna com 15 min, então 10 min absorve o atraso do agendador.
-- **GitHub Actions:** o workflow [`.github/workflows/keepalive.yml`](../.github/workflows/keepalive.yml)
-  já faz isso a cada 10 min (06h–24h de Brasília). Configure a variável de repositório
-  `API_BASE_URL` (Settings → Secrets and variables → Actions → Variables) e rode uma vez com
-  *Run workflow*. Limites: o cron do GitHub pode atrasar alguns minutos, só roda no branch
-  padrão (`main`) e, em repositório **privado**, consome minutos do plano free.
 - **Do seu PC (Agendador de Tarefas do Windows):** a cada 10 min,
   `node scripts/keepalive.mjs https://SEU-SERVICO.onrender.com`.
 
 Orçamento do free: **750 h de instância por mês**. Acordado 24/7 são 720–744 h/mês — cabe, mas
-sem margem para deploys extras ou um segundo serviço. A janela padrão do workflow (18 h/dia)
-gasta ~540 h/mês; para 24/7 troque o `cron` do workflow por `'*/10 * * * *'`.
+sem margem para deploys extras ou um segundo serviço. A janela padrão (18 h/dia) gasta ~540 h/mês;
+para 24/7 troque o cron do Worker em `wrangler.jsonc` por `"*/10 * * * *"` e o do workflow por
+`'3,13,23,33,43,53 * * * *'`.
 
-Se a API hibernar mesmo com keep-alive, confira: URL correta, workflow/monitor ativo, resposta 200
-e se o serviço não está recebendo deploy (todo deploy reinicia a instância).
+Se a API hibernar mesmo com keep-alive, confira: URL correta, Cron Trigger presente no Worker
+(ou workflow ativo), resposta 200 e se o serviço não está recebendo deploy (todo deploy reinicia
+a instância).
 
 ### 5.3 Sono indolor (já implementado)
 
