@@ -120,6 +120,14 @@ async function proxy(request, url) {
     return marked
   }
 
+  // a página pública é HTML renderizado no servidor: nunca deixar o edge
+  // guardar o index do SPA no lugar dela (links compartilhados quebrariam)
+  if (url.pathname.startsWith('/c/')) {
+    const uncached = new Response(response.body, response)
+    uncached.headers.set('cache-control', 'no-store')
+    return uncached
+  }
+
   return response
 }
 
