@@ -1,6 +1,5 @@
 const base = (process.argv[2] ?? 'http://127.0.0.1:8000').replace(/\/$/, '')
-const stamp = Date.now()
-const email = `audit-${stamp}@exemplo.com`
+const email = 'e2e-api@exemplo.com'
 const password = 'senha-auditoria-123'
 const results = []
 
@@ -33,13 +32,13 @@ async function call(path, { token, json, method = 'GET', form } = {}) {
 const health = await call('/health')
 check('health ok', health.status === 200 && health.data.checks.database === true)
 
-// 2) cadastro / duplicado / senha errada
-const reg = await call('/api/auth/register', {
-  method: 'POST',
-  json: { email, password },
-})
-check('register 201', reg.status === 201 && Boolean(reg.data.access_token))
-const token = reg.data.access_token
+// 2) conta fixa: login ou cadastro (idempotente entre execuções)
+let session = await call('/api/auth/login', { method: 'POST', json: { email, password } })
+if (session.status !== 200) {
+  session = await call('/api/auth/register', { method: 'POST', json: { email, password } })
+}
+check('sessão de teste pronta', session.status === 200 || session.status === 201)
+const token = session.data.access_token
 
 const dup = await call('/api/auth/register', { method: 'POST', json: { email, password } })
 check('register duplicado 409', dup.status === 409 && dup.data.code === 'conflict')
@@ -172,11 +171,18 @@ await call(`/api/cards/${withArt[0].id}`, {
 const meAfterRemove = await call('/api/auth/me', { token })
 check('remover arte devolve a cota (4/5)', meAfterRemove.data.uploads_used === 4)
 
-// 7) posse
-const otherReg = await call('/api/auth/register', {
+// 7) posse (conta intrusa fixa: login ou cadastro)
+const otherEmail = 'e2e-intruso@exemplo.com'
+let otherReg = await call('/api/auth/login', {
   method: 'POST',
-  json: { email: `intruso-${stamp}@exemplo.com`, password },
+  json: { email: otherEmail, password },
 })
+if (otherReg.status !== 200) {
+  otherReg = await call('/api/auth/register', {
+    method: 'POST',
+    json: { email: otherEmail, password },
+  })
+}
 const otherToken = otherReg.data.access_token
 const invade = await call(`/api/cards/${card.id}`, {
   token: otherToken,
@@ -257,6 +263,14 @@ check(
 // 14) token adulterado é rejeitado
 const forged = await call('/api/cards/mine', { token: 'a'.repeat(40) + '.b.c' })
 check('token forjado 401', forged.status === 401)
+
+// 16) limpeza: o teste não deixa lixo na galeria
+const leftovers = await call('/api/cards/mine?limit=100', { token })
+for (const item of leftovers.data?.items ?? []) {
+  await call(`/api/cards/${item.id}`, { token, method: 'DELETE' })
+}
+const afterCleanup = await call('/api/cards/mine', { token })
+check('limpeza: nenhuma carta de teste sobrando', afterCleanup.data.items.length === 0)
 
 const failed = results.filter((r) => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} verificações passaram`)
