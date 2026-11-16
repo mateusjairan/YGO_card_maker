@@ -38,6 +38,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings.ensure_local_dirs()
     configure_logging(settings.log_level, settings.log_format)
 
+    # URLs/segredo locais em produção = links quebrados ou JWT forjável: avisa alto
+    for problem in settings.production_warnings():
+        logger.warning("configuracao_de_producao", extra={"problema": problem})
+
     repository = build_repository(settings)
     storage = build_image_storage(settings)
 

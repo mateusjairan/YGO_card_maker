@@ -8,7 +8,8 @@
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-lightgrey)](#licença)
 
 **Demo ao vivo:** <https://ygo-card-maker.mateusjairan.workers.dev> · API:
-<https://ygo-card-maker.onrender.com/health> · conta de teste `demo@exemplo.com` / `senha-demo-123`
+<https://ygo-card-maker.onrender.com/health> (plano free: a 1ª chamada pode levar ~40 s de cold
+start) · conta de teste `demo@exemplo.com` / `senha-demo-123`
 
 Criador de cartas customizadas de Yu-Gi-Oh!: você entra com e-mail, monta a carta no navegador
 com a sua arte, moldura por atributo, brilho holográfico, exporta em PNG 2× e compartilha um link
@@ -356,7 +357,13 @@ flowchart LR
 - **API — Render:** o repositório tem [`render.yaml`](render.yaml) (Blueprint). Deploy em um
   clique: <https://render.com/deploy?repo=https://github.com/mateusjairan/YGO_card_maker>. Preencha
   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PUBLIC_BASE_URL`, `FRONTEND_BASE_URL` e
-  `CORS_ORIGINS`. Health check em `/health`.
+  `CORS_ORIGINS`. Health check em `/health/live` (liveness sem tocar o Supabase); `/health` é a
+  readiness que checa o banco.
+- **Cold start:** no plano free o Render hiberna a API após ~15 min sem tráfego (1ª request =
+  30–50 s). O front já avisa "Acordando a API" e repete GET em 502/503/504; para não dormir, use o
+  keep-alive em [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml)
+  (`node scripts/keepalive.mjs <url>`) ou o plano Starter. Detalhes e custo em horas:
+  [docs/deploy.md](docs/deploy.md#5-evitar-o-cold-start-api-hibernando).
 - **Front — Cloudflare Pages:** root `web`, build `pnpm build`, saída `dist`, `NODE_VERSION=22`.
   `web/public/_redirects` faz o proxy de `/api`, `/c`, `/media`, `/static` e `/docs` para a API na
   mesma origem (sem CORS, links curtos e Open Graph real).
@@ -413,6 +420,7 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 ├─ CONTRIBUTORS.md
 ├─ .env.example
 ├─ .github/workflows/ci.yml
+├─ .github/workflows/keepalive.yml  # ping em /health/live contra o cold start
 ├─ src/app/                    # API
 │  ├─ main.py                  # composition root
 │  ├─ config.py
@@ -431,7 +439,7 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 ├─ supabase/migrations/        # schema + bucket
 ├─ tests/                      # pytest (unit + integração)
 ├─ load/k6-smoke.js            # carga
-├─ scripts/                    # smoke manual e export do OpenAPI
+├─ scripts/                    # smoke manual, keep-alive e export do OpenAPI
 └─ docs/
    ├─ adr/0001-arquitetura-em-camadas.md
    ├─ desempenho.md
@@ -459,6 +467,10 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
   prontas; o fluxo validado em execução contínua é o SQLite local (o mesmo contrato).
 - Sem testes E2E de navegador (o fluxo é coberto por API + smoke manual) e sem cache Redis —
   ambos listados em [docs/desempenho.md](docs/desempenho.md) como próximos passos.
+- **API hiberna no plano free do Render** (~15 min ociosos): mitigado com `/health/live`,
+  keep-alive opcional (`scripts/keepalive.mjs` e workflow) e front resiliente; o cold start de
+  30–50 s só desaparece de vez no plano Starter — ver
+  [docs/deploy.md](docs/deploy.md#5-evitar-o-cold-start-api-hibernando).
 
 ## Uso de IA
 

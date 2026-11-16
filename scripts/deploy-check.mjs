@@ -41,6 +41,9 @@ check('API /health responde 200', health.status === 200, `${health.ms} ms (cold 
 check('banco conectado', parsed?.checks?.database === true, JSON.stringify(parsed?.checks ?? {}))
 check('storage em produção', ['supabase', 'sqlite'].includes(parsed?.storage), parsed?.storage)
 
+const live = await get(`${api}/health/live`)
+check('API /health/live responde 200 (keep-alive)', live.status === 200, `${live.ms} ms`)
+
 const docs = await get(`${api}/docs`)
 check('Swagger em /docs', docs.status === 200)
 
