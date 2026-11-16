@@ -7,6 +7,9 @@
 [![SLO p95](https://img.shields.io/badge/p95-65%20ms-blue)](docs/desempenho.md)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-lightgrey)](#licença)
 
+**Demo ao vivo:** <https://ygo-card-maker.mateusjairan.workers.dev> · API:
+<https://ygo-card-maker.onrender.com/health> · conta de teste `demo@exemplo.com` / `senha-demo-123`
+
 Criador de cartas customizadas de Yu-Gi-Oh!: você entra com e-mail, monta a carta no navegador
 com a sua arte, moldura por atributo, brilho holográfico, exporta em PNG 2× e compartilha um link
 que já abre com prévia no WhatsApp/Discord/X.
