@@ -17,6 +17,9 @@
   "assets": {
     "directory": "./web/dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // o Worker decide rota por rota (proxy antes do fallback do SPA), senão o
+    // índice do SPA pode ser servido no lugar de /c/{slug} e /api/*
+    "run_worker_first": true
   }
 }
