@@ -1,20 +1,20 @@
-"""Configura o Supabase para o projeto: valida chaves, aplica migrations e escreve o .env.
+"""Configura o Supabase: valida chaves, aplica migrations e escreve o .env.
 
 Uso:
+    # com a chave secreta (service_role / sb_secret_...)
     python scripts/setup-supabase.py --url https://xxxx.supabase.co --service-key sb_secret_...
 
-    # aplicar as migrations automaticamente (precisa de um Personal Access Token)
-    python scripts/setup-supabase.py --url ... --service-key ... --access-token sbp_...
+    # só com um Personal Access Token: busca a secret key e aplica as migrations
+    python scripts/setup-supabase.py --url https://xxxx.supabase.co --access-token sbp_...
 
-    # só validar, sem tocar no .env
+    # apenas diagnosticar (não altera o .env)
     python scripts/setup-supabase.py --url ... --service-key ... --check-only
 
 O que ele faz:
-  1. valida a URL e a service_role (avisa se você colou a anon key);
-  2. confere se as tabelas `users` e `cards` existem;
-  3. confere o bucket `card-images`;
-  4. com --access-token, roda as migrations pelo Management API;
-  5. com --write (padrão), atualiza o .env para STORAGE_BACKEND=supabase.
+  1. valida a URL e a chave (avisa se for publishable/anon);
+  2. confere tabelas `users`/`cards` e o bucket `card-images`;
+  3. aplica as migrations pelo Management API (com --access-token);
+  4. escreve o .env com STORAGE_BACKEND=supabase.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = sorted((ROOT / "supabase" / "migrations").glob("*.sql"))
+MANAGEMENT = "https://api.supabase.com/v1"
 
 
 def request(
@@ -37,7 +38,7 @@ def request(
 ):
     req = urllib.request.Request(url, data=body, method=method, headers=headers or {})
     try:
-        with urllib.request.urlopen(req, timeout=20) as response:
+        with urllib.request.urlopen(req, timeout=25) as response:
             return response.status, response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as error:
         return error.code, error.read().decode("utf-8", "replace")
@@ -55,16 +56,56 @@ def jwt_role(token: str) -> str | None:
         return None
 
 
+def fetch_secret_key(project_ref: str, access_token: str) -> str | None:
+    """Busca a chave secreta do projeto pelo Management API."""
+    status, body = request(
+        f"{MANAGEMENT}/projects/{project_ref}/api-keys?reveal=true",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if status != 200:
+        print(f"[!] não consegui listar as chaves (HTTP {status}): {body[:140]}")
+        return None
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+
+    items = data if isinstance(data, list) else data.get("keys", [])
+    for item in items:
+        value = item.get("api_key") or item.get("key") or ""
+        if value.startswith("sb_secret_") or jwt_role(value) == "service_role":
+            return value
+    return None
+
+
+def apply_migrations(project_ref: str, access_token: str) -> bool:
+    print("aplicando migrations…")
+    for migration in MIGRATIONS:
+        status, body = request(
+            f"{MANAGEMENT}/projects/{project_ref}/database/query",
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            body=json.dumps({"query": migration.read_text(encoding="utf-8")}).encode(),
+        )
+        if status in (200, 201):
+            print(f"  {migration.name}: aplicada")
+        else:
+            print(f"  {migration.name}: FALHOU (HTTP {status}) {body[:200]}")
+            return False
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Configura o Supabase do YGO Card Maker")
     parser.add_argument("--url", required=True, help="Project URL (https://xxxx.supabase.co)")
-    parser.add_argument("--service-key", required=True, help="service_role key")
+    parser.add_argument("--service-key", help="service_role / sb_secret_...")
+    parser.add_argument("--access-token", help="Personal Access Token (sbp_...)")
     parser.add_argument("--bucket", default="card-images")
-    parser.add_argument(
-        "--access-token", help="Personal Access Token (sbp_...) para aplicar migrations"
-    )
     parser.add_argument("--check-only", action="store_true", help="não altera o .env")
-    parser.add_argument("--no-write", action="store_true", help="não altera o .env")
     args = parser.parse_args()
 
     url = args.url.rstrip("/")
@@ -73,95 +114,100 @@ def main() -> int:
         return 2
 
     project_ref = url.split("//", 1)[1].split(".", 1)[0]
-    headers = {
-        "apikey": args.service_key,
-        "Authorization": f"Bearer {args.service_key}",
-        "Content-Type": "application/json",
-    }
-
     print(f"projeto: {project_ref}")
-    role = jwt_role(args.service_key)
+
+    service_key = args.service_key
+    if not service_key and args.access_token:
+        print("buscando a chave secreta pelo Management API…")
+        service_key = fetch_secret_key(project_ref, args.access_token)
+        if service_key:
+            print(f"chave secreta encontrada ({service_key[:12]}…)")
+        else:
+            print("[!] não achei a secret key; use --service-key (Project Settings > API keys).")
+            return 2
+
+    if not service_key:
+        print("[!] informe --service-key (só a leitura pode usar a publishable).")
+        return 2
+
+    role = jwt_role(service_key)
+    publishable = service_key.startswith("sb_publishable_") or role == "anon"
+    if publishable and not args.check_only:
+        print("[!] essa é a chave PÚBLICA (publishable/anon), não a secreta.")
+        print("    o backend escreve com a service_role/secret, que bypassa o RLS.")
+        print("    Dashboard > Project Settings > API keys > Secret keys (sb_secret_...).")
+        return 2
     if role and role != "service_role":
         print(f"[!] a chave tem role '{role}', não 'service_role'.")
-        print("    o backend precisa da service_role (Project Settings > API).")
         return 2
     if role == "service_role":
         print("chave: service_role (ok)")
 
-    # 1) conectividade
-    status, body = request(f"{url}/rest/v1/", headers=headers)
-    if status != 200:
-        print(f"[!] não consegui falar com o PostgREST (HTTP {status}): {body[:160]}")
-        return 2
-    print("postgrest: ok")
+    headers = {
+        "apikey": service_key,
+        "Authorization": f"Bearer {service_key}",
+        "Content-Type": "application/json",
+    }
 
-    # 2) tabelas
+    # 1) tabelas
     tables = {}
     for table in ("users", "cards"):
         status, body = request(f"{url}/rest/v1/{table}?select=id&limit=1", headers=headers)
         tables[table] = status == 200
         print(f"tabela {table}: {'ok' if status == 200 else f'ausente (HTTP {status})'}")
 
-    # 3) bucket
-    status, body = request(f"{url}/storage/v1/bucket/{args.bucket}", headers=headers)
+    # 2) bucket
+    status, _ = request(f"{url}/storage/v1/bucket/{args.bucket}", headers=headers)
     bucket_ok = status == 200
     print(f"bucket {args.bucket}: {'ok' if bucket_ok else f'ausente (HTTP {status})'}")
 
-    # 4) migrations
-    if not all(tables.values()) or not bucket_ok:
+    # 3) migrations
+    schema_ok = all(tables.values()) and bucket_ok
+    if not schema_ok:
         if args.access_token:
-            print("\naplicando migrations pelo Management API…")
-            for migration in MIGRATIONS:
-                sql = migration.read_text(encoding="utf-8")
-                status, body = request(
-                    f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
-                    method="POST",
-                    headers={
-                        "Authorization": f"Bearer {args.access_token}",
-                        "Content-Type": "application/json",
-                    },
-                    body=json.dumps({"query": sql}).encode(),
-                )
-                if status in (200, 201):
-                    print(f"  {migration.name}: aplicada")
-                else:
-                    print(f"  {migration.name}: FALHOU (HTTP {status}) {body[:200]}")
-                    return 3
+            if not apply_migrations(project_ref, args.access_token):
+                return 3
+            tables = {table: True for table in tables}
+            schema_ok = True
         else:
-            print("\n[!] schema incompleto. Rode as migrations:")
+            print("\n[!] schema incompleto (tabelas/bucket). Aplique as migrations:")
             print("    supabase link --project-ref " + project_ref + " && supabase db push")
-            print("    ou cole os arquivos abaixo no SQL Editor do dashboard:")
+            print("    ou cole no SQL Editor, nesta ordem:")
             for migration in MIGRATIONS:
                 print(f"      - {migration.relative_to(ROOT)}")
             print("    ou repita com --access-token sbp_... para aplicar automaticamente.")
-            return 3
+            print("    as chaves serão gravadas no .env, mas STORAGE_BACKEND continua sqlite.")
+            if args.check_only:
+                return 3
 
-    # 5) .env
-    if not args.check_only and not args.no_write:
+    # 4) .env
+    if not args.check_only:
         env_path = ROOT / ".env"
         if not env_path.exists():
-            print("[!] .env não existe; rode o script de geração primeiro.")
+            print("[!] .env não existe; gere a partir do .env.example primeiro.")
             return 4
         text = env_path.read_text(encoding="utf-8")
         replacements = {
-            "STORAGE_BACKEND": "supabase",
+            "STORAGE_BACKEND": "supabase" if schema_ok else "sqlite",
             "SUPABASE_URL": url,
-            "SUPABASE_SERVICE_ROLE_KEY": args.service_key,
+            "SUPABASE_SERVICE_ROLE_KEY": service_key,
             "SUPABASE_BUCKET": args.bucket,
         }
         for key, value in replacements.items():
             pattern = re.compile(rf"^{key}=.*$", re.MULTILINE)
-            if pattern.search(text):
-                text = pattern.sub(f"{key}={value}", text)
-            else:
-                text += f"\n{key}={value}"
+            text = (
+                pattern.sub(f"{key}={value}", text)
+                if pattern.search(text)
+                else text + f"\n{key}={value}"
+            )
         env_path.write_text(text, encoding="utf-8")
-        print("\n.env atualizado: STORAGE_BACKEND=supabase")
+        backend = "supabase" if schema_ok else "sqlite (schema pendente)"
+        print(f"\n.env atualizado: STORAGE_BACKEND={backend}")
 
     print("\npróximos passos:")
     print("  1. reinicie a API (uvicorn) para carregar o .env")
     print("  2. curl http://127.0.0.1:8000/health  -> database: true")
-    print("  3. faça um cadastro e suba uma arte; ela deve aparecer no bucket", args.bucket)
+    print(f"  3. cadastre-se e suba uma arte; ela deve aparecer no bucket {args.bucket}")
     return 0
 
 
