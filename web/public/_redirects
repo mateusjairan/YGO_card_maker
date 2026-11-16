@@ -3,13 +3,13 @@
 # Enquanto não substituir, /api e /c respondem 502.
 # Docs: https://developers.cloudflare.com/pages/configuration/redirects/
 
-/api/*          https://SEU-SERVICO.onrender.com/api/:splat        200
-/c/*            https://SEU-SERVICO.onrender.com/c/:splat          200
-/static/*       https://SEU-SERVICO.onrender.com/static/:splat     200
-/media/*        https://SEU-SERVICO.onrender.com/media/:splat      200
-/docs           https://SEU-SERVICO.onrender.com/docs              200
-/openapi.json   https://SEU-SERVICO.onrender.com/openapi.json      200
-/health         https://SEU-SERVICO.onrender.com/health            200
+/api/*          https://ygo-card-maker.onrender.com/api/:splat        200
+/c/*            https://ygo-card-maker.onrender.com/c/:splat          200
+/static/*       https://ygo-card-maker.onrender.com/static/:splat     200
+/media/*        https://ygo-card-maker.onrender.com/media/:splat      200
+/docs           https://ygo-card-maker.onrender.com/docs              200
+/openapi.json   https://ygo-card-maker.onrender.com/openapi.json      200
+/health         https://ygo-card-maker.onrender.com/health            200
 
 # SPA fallback (precisa ser a última regra)
 /*              /index.html                                                200
