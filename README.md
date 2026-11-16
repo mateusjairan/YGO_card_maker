@@ -249,6 +249,9 @@ Camadas: `.ygo-card__foil` (padrão da raridade), `.ygo-card__holo` (brilho na a
 `.ygo-card__grain` (relevo), `.ygo-card__stars` (estrelas), `.ygo-card__sparkle` (glitter) e
 `.ygo-card__glare` (verniz que segue o ponteiro).
 
+A intensidade tem **um único botão**: `--foil` em `.ygo-card` (`0` desliga, `0.45` é o padrão
+discreto, `1` é o máximo — o mesmo valor vale para as 9 raridades).
+
 ![Quatro raridades](docs/img/rarities.png)
 
 ### Arte de exemplo e créditos
