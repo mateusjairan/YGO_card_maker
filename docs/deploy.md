@@ -74,8 +74,17 @@ Valide:
 curl -s https://SEU-SERVICO.onrender.com/health
 # {"status":"ok",...,"checks":{"database":true}}
 
+curl -s https://SEU-SERVICO.onrender.com/ | head -c 200   # URL pública do front
+# {"name":"...","version":"1.0.0","docs":"/docs",...,"frontend":"https://seu-site.pages.dev"}
+
 curl -s https://SEU-SERVICO.onrender.com/docs | head -c 80   # Swagger
 ```
+
+> **Confira antes da demo:** `/health` tem que mostrar `"env":"production"` (se mostrar
+> `development`, `APP_ENV` não foi preenchida) e a raiz `/` tem que mostrar `frontend` com a URL
+> pública do front. Abra uma carta em `/c/{slug}` e veja se os links não apontam para `localhost` —
+> com `PUBLIC_BASE_URL` ou `FRONTEND_BASE_URL` erradas, o Open Graph e os botões da página pública
+> quebram. Desde esta versão, `create_app` loga `configuracao_de_producao` (WARNING) nesses casos.
 
 > **Cold start:** no plano free o serviço hiberna após ~15 min sem tráfego. A primeira requisição
 > leva ~30–50 s. Para eliminar (Starter) ou disfarçar isso (keep-alive gratuito + front resiliente),
@@ -209,3 +218,4 @@ Ponha Caddy/Traefik na frente para TLS. Sem cold start.
 | `database: false` | migrations não aplicadas | rodar `supabase db push` |
 | `403 permission denied for table` | projeto sem GRANT para a `service_role` | rodar `supabase/migrations/20261115000200_grants.sql` (ou `supabase/setup.sql`) |
 | `401 Secret API key required` | usou a chave publishable no backend | usar a secret (`sb_secret_…`) em `SUPABASE_SERVICE_ROLE_KEY` |
+| `/health` com `"env":"development"` ou `/c/{slug}` com links `localhost` | `APP_ENV`/`PUBLIC_BASE_URL`/`FRONTEND_BASE_URL`/`CORS_ORIGINS` não preenchidas no Render | preencher (seção 2) e redeployar; o log mostra `configuracao_de_producao` |
