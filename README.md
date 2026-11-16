@@ -350,18 +350,26 @@ flowchart LR
     API --> ST[(Supabase Storage)]
 ```
 
-- **API — Render:** o repositório tem [`render.yaml`](render.yaml) (Blueprint). New → Blueprint →
-  selecione o repo; preencha `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PUBLIC_BASE_URL` e
-  `FRONTEND_BASE_URL`. Health check em `/health`.
+- **API — Render:** o repositório tem [`render.yaml`](render.yaml) (Blueprint). Deploy em um
+  clique: <https://render.com/deploy?repo=https://github.com/mateusjairan/YGO_card_maker>. Preencha
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PUBLIC_BASE_URL`, `FRONTEND_BASE_URL` e
+  `CORS_ORIGINS`. Health check em `/health`.
 - **Front — Cloudflare Pages:** root `web`, build `pnpm build`, saída `dist`, `NODE_VERSION=22`.
   `web/public/_redirects` faz o proxy de `/api`, `/c`, `/media`, `/static` e `/docs` para a API na
-  mesma origem (sem CORS, links curtos e Open Graph real). **Troque a URL de exemplo** pela URL do
-  seu serviço no Render antes de publicar.
+  mesma origem (sem CORS, links curtos e Open Graph real).
 - **Banco/Storage — Supabase:** migrations acima; a `service_role` fica só no Render.
 - **Alternativa 100% Docker:** `docker compose up -d --build` em qualquer VPS (o nginx já faz o
   proxy da API, então o front e a API ficam no mesmo domínio).
 
-Validação depois do deploy: `node scripts/e2e-api.mjs https://sua-api.onrender.com`.
+Depois de publicar, aponte o projeto para as URLs reais e valide:
+
+```bash
+python scripts/set-deploy-url.py --api https://sua-api.onrender.com --web https://seu-site.pages.dev
+git add -A && git commit -m "chore(deploy): aponta para produção" && git push
+
+node scripts/deploy-check.mjs https://sua-api.onrender.com https://seu-site.pages.dev
+node scripts/e2e-api.mjs https://sua-api.onrender.com
+```
 
 ## Observabilidade e SLO
 
