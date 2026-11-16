@@ -37,7 +37,7 @@ def make_card(**overrides) -> Card:
 
 class TestSlug:
     def test_remove_acentos_e_espacos(self):
-        assert slugify("Julia, Dama de Köln") == "julia-dama-de-koln"
+        assert slugify("Coração de Dragão") == "coracao-de-dragao"
 
     def test_nome_sem_letras_usa_fallback(self):
         assert slugify("!!! ???") == "carta"
@@ -55,8 +55,8 @@ class TestSlug:
 
 class TestTypeLine:
     def test_monstro_completo(self):
-        card = make_card(archetype="Guardiões de Köln")
-        assert type_line(card) == 'FADA / EFEITO / "GUARDIÕES DE KÖLN"'
+        card = make_card(archetype="Magia Negra")
+        assert type_line(card) == 'FADA / EFEITO / "MAGIA NEGRA"'
 
     def test_monstro_sem_raca(self):
         assert type_line(make_card(race=None)) == "EFEITO"

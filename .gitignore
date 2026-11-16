@@ -28,6 +28,11 @@ data/
 .uv-cache/
 .pip-cache/
 
+# --- artes locais (não versionar imagens de terceiros) ---------------------
+web/public/local-*.png
+web/public/local-*.jpg
+web/public/local-*.webp
+
 # --- segredos e ambiente ----------------------------------------------------
 .env
 .env.*

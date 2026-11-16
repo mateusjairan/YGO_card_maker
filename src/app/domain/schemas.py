@@ -32,7 +32,7 @@ class CardWrite(BaseModel):
 
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
-    name: str = Field(min_length=1, max_length=MAX_NAME, examples=["Julia, Dama de Köln"])
+    name: str = Field(min_length=1, max_length=MAX_NAME, examples=["Mago Negro"])
     kind: CardKind
     description: str = Field(default="", max_length=MAX_DESCRIPTION)
 

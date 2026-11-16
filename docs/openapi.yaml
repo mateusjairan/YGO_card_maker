@@ -314,7 +314,7 @@ components:
           - type: 'null'
         name:
           examples:
-          - Julia, Dama de Köln
+          - Mago Negro
           maxLength: 60
           minLength: 1
           title: Name
