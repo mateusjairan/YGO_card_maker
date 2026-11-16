@@ -167,7 +167,7 @@ def main() -> int:
         if args.access_token:
             if not apply_migrations(project_ref, args.access_token):
                 return 3
-            tables = {table: True for table in tables}
+            tables = dict.fromkeys(tables, True)
             schema_ok = True
         else:
             print("\n[!] schema incompleto (tabelas/bucket). Aplique as migrations:")
