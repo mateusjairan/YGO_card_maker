@@ -24,6 +24,19 @@ export class ApiError extends Error {
   }
 }
 
+/** Traduz os erros de validação do FastAPI numa frase útil. */
+function humanizeErrors(errors: unknown): string | null {
+  if (!Array.isArray(errors) || errors.length === 0) return null
+  const first = errors[0] as { type?: string; loc?: unknown[]; msg?: string }
+  const field = Array.isArray(first.loc) ? String(first.loc[first.loc.length - 1]) : ''
+  if (first.type === 'string_too_short' && field === 'password') {
+    return 'A senha precisa ter pelo menos 8 caracteres.'
+  }
+  if (first.type === 'value_error' && field === 'email') return 'Informe um e-mail válido.'
+  if (first.type === 'missing') return `Preencha o campo ${field || 'obrigatório'}.`
+  return first.msg ?? null
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   const isFormData = init.body instanceof FormData
@@ -56,11 +69,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     const data = (payload ?? {}) as { detail?: unknown; code?: string; errors?: unknown }
     const detail =
-      typeof data.detail === 'string'
+      humanizeErrors(data.errors) ??
+      (typeof data.detail === 'string'
         ? data.detail
-        : Array.isArray(data.errors) && data.errors.length > 0
-          ? String((data.errors[0] as { msg?: string }).msg ?? 'Dados inválidos')
-          : 'Falha na requisição'
+        : `O servidor respondeu HTTP ${response.status} sem JSON. Confira se /api está apontando para a API.`)
     throw new ApiError(detail, response.status, data.code, data.errors)
   }
 

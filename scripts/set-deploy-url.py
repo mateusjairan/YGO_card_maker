@@ -22,30 +22,31 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> int:
     parser = argparse.ArgumentParser(description="Configura as URLs de produção")
     parser.add_argument("--api", required=True, help="URL pública da API (Render)")
-    parser.add_argument("--web", required=True, help="URL pública do front (Pages)")
+    parser.add_argument("--web", help="URL pública do front (Pages/Worker); opcional")
     args = parser.parse_args()
 
     api = args.api.rstrip("/")
-    web = args.web.rstrip("/")
-    if not api.startswith("https://") or not web.startswith("https://"):
-        print("[!] as duas URLs precisam ser https")
+    web = (args.web or "").rstrip("/")
+    if not api.startswith("https://") or (web and not web.startswith("https://")):
+        print("[!] as URLs precisam ser https")
         return 2
 
     redirects = ROOT / "web" / "public" / "_redirects"
     text = redirects.read_text(encoding="utf-8")
     text = re.sub(r"https://[a-z0-9.-]+\.onrender\.com", api, text)
-    text = re.sub(r"https://[a-z0-9.-]+\.pages\.dev", web, text)
+    text = re.sub(r"https://SEU-SERVICO\.onrender\.com", api, text)
+    if web:
+        text = re.sub(r"https://[a-z0-9.-]+\.pages\.dev", web, text)
     redirects.write_text(text, encoding="utf-8")
     print(f"_redirects -> {api}")
 
     env_path = ROOT / ".env"
     if env_path.exists():
         env = env_path.read_text(encoding="utf-8")
-        replacements = {
-            "PUBLIC_BASE_URL": api,
-            "FRONTEND_BASE_URL": web,
-            "CORS_ORIGINS": f"{web},http://localhost:5173",
-        }
+        replacements = {"PUBLIC_BASE_URL": api}
+        if web:
+            replacements["FRONTEND_BASE_URL"] = web
+            replacements["CORS_ORIGINS"] = f"{web},http://localhost:5173"
         for key, value in replacements.items():
             pattern = re.compile(rf"^{key}=.*$", re.MULTILINE)
             env = (
