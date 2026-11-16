@@ -44,7 +44,7 @@ Nada foi aceito sem execução:
 
 | Verificação | Resultado |
 | --- | --- |
-| `pytest` | 93 testes, 92,7% de cobertura (mínimo declarado: 80%) |
+| `pytest` | 100 testes, 93,5% de cobertura (mínimo declarado: 80%) |
 | `ruff check` / `ruff format --check` | limpo |
 | `pnpm lint` / `pnpm build` / `tsc --noEmit` | limpo |
 | `node scripts/smoke.mjs` | 16/16 verificações (cadastro, login, cota, cartas, upload, 401/403, OG) |
