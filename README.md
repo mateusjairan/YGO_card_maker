@@ -360,10 +360,10 @@ flowchart LR
   `CORS_ORIGINS`. Health check em `/health/live` (liveness sem tocar o Supabase); `/health` é a
   readiness que checa o banco.
 - **Cold start:** no plano free o Render hiberna a API após ~15 min sem tráfego (1ª request =
-  30–50 s). O front já avisa "Acordando a API" e repete GET em 502/503/504; para não dormir, use o
-  keep-alive em [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml)
-  (`node scripts/keepalive.mjs <url>`) ou o plano Starter. Detalhes e custo em horas:
-  [docs/deploy.md](docs/deploy.md#5-evitar-o-cold-start-api-hibernando).
+  30–50 s). O front já avisa "Acordando a API" e repete GET em 502/503/504; para não dormir, o
+  Worker tem um Cron Trigger (`wrangler.jsonc`) que pinga `/health/live` a cada 10 min, com
+  `scripts/keepalive.mjs` e o workflow do GitHub como reserva — ou o plano Starter. Detalhes e
+  custo em horas: [docs/deploy.md](docs/deploy.md#5-evitar-o-cold-start-api-hibernando).
 - **Front — Cloudflare Pages:** root `web`, build `pnpm build`, saída `dist`, `NODE_VERSION=22`.
   `web/public/_redirects` faz o proxy de `/api`, `/c`, `/media`, `/static` e `/docs` para a API na
   mesma origem (sem CORS, links curtos e Open Graph real).

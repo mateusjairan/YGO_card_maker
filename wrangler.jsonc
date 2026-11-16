@@ -8,6 +8,12 @@
   "observability": {
     "enabled": true
   },
+  // Keep-alive da API no Render (plano free hiberna após ~15 min ociosos).
+  // O handler `scheduled` do Worker só pinga dentro da janela 06h–24h de Brasília.
+  // A Cloudflare pode levar até 15 min para propagar um Cron Trigger novo.
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
   "assets": {
     "directory": "./web/dist",
     "binding": "ASSETS",
