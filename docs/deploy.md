@@ -155,3 +155,5 @@ Ponha Caddy/Traefik na frente para TLS. Sem cold start.
 | OG sem imagem | `og:image` relativo | conferir `PUBLIC_BASE_URL` (precisa ser a URL pública da API) |
 | 500 no `/health` | chave do Supabase errada | conferir `SUPABASE_URL`/`SERVICE_ROLE` |
 | `database: false` | migrations não aplicadas | rodar `supabase db push` |
+| `403 permission denied for table` | projeto sem GRANT para a `service_role` | rodar `supabase/migrations/20261115000200_grants.sql` (ou `supabase/setup.sql`) |
+| `401 Secret API key required` | usou a chave publishable no backend | usar a secret (`sb_secret_…`) em `SUPABASE_SERVICE_ROLE_KEY` |
