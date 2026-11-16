@@ -22,6 +22,9 @@ def main() -> None:
         upload_dir=str(ROOT / "data" / "uploads"),
         public_base_url="https://ygo-card-maker-api.onrender.com",
         frontend_base_url="https://ygo-card-maker.pages.dev",
+        # valores de produção só para o schema sair sem os avisos de config
+        cors_origins="https://ygo-card-maker.pages.dev",
+        secret_key="openapi-export-apenas-para-gerar-o-schema-32b",
     )
     application = create_app(settings)
     schema = application.openapi()

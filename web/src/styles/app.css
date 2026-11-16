@@ -132,6 +132,53 @@ a {
   height: 70px;
 }
 
+/* --- aviso de cold start (API hibernando no plano free do Render) ---------- */
+.wake-banner {
+  position: sticky;
+  top: 70px;
+  z-index: 49;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 7px 16px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: 0.09em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  background: linear-gradient(
+    90deg,
+    rgba(230, 194, 115, 0.04),
+    rgba(230, 194, 115, 0.16),
+    rgba(230, 194, 115, 0.04)
+  );
+  border-bottom: 1px solid rgba(230, 194, 115, 0.22);
+}
+
+.wake-banner__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 10px rgba(230, 194, 115, 0.8);
+  animation: wake-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes wake-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
 .brand {
   display: inline-flex;
   align-items: center;

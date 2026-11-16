@@ -1,11 +1,42 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { api } from './lib/api'
 import { useSession } from './lib/session'
 import { EditorPage } from './pages/Editor'
 import { HomePage } from './pages/Home'
 import { LoginPage } from './pages/Login'
 import { MyCardsPage } from './pages/MyCards'
 import { NotFoundPage } from './pages/NotFound'
+
+/**
+ * A API no plano free do Render hiberna após ~15 min ociosos e acorda com um
+ * cold start de 30–50 s. Pingamos /health/live assim que a página abre: o
+ * sono (e o tempo de espera) acontece enquanto a pessoa navega, não no clique
+ * de "salvar carta". Se demorar, mostramos um aviso em vez de deixar a tela
+ * parecendo quebrada.
+ */
+function useApiWarmup(): boolean {
+  const [waking, setWaking] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    const timer = setTimeout(() => {
+      if (active) setWaking(true)
+    }, 1500)
+
+    void api.warmup().then(() => {
+      clearTimeout(timer)
+      if (active) setWaking(false)
+    })
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [])
+
+  return waking
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useSession()
@@ -51,6 +82,7 @@ function QuotaBadge() {
 
 export function App() {
   const { user, logout } = useSession()
+  const waking = useApiWarmup()
 
   return (
     <>
@@ -93,6 +125,13 @@ export function App() {
           </div>
         </div>
       </header>
+
+      {waking && (
+        <div className="wake-banner" role="status" aria-live="polite">
+          <span className="wake-banner__dot" aria-hidden="true" />
+          Acordando a API (plano free do Render) — pode levar até ~1 minuto
+        </div>
+      )}
 
       <main>
         <Routes>

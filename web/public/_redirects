@@ -10,6 +10,7 @@
 /docs           https://ygo-card-maker.onrender.com/docs              200
 /openapi.json   https://ygo-card-maker.onrender.com/openapi.json      200
 /health         https://ygo-card-maker.onrender.com/health            200
+/health/live    https://ygo-card-maker.onrender.com/health/live       200
 
 # SPA fallback (precisa ser a última regra)
 /*              /index.html                                                200

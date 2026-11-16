@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Request, Response, status
 
 from app import __version__
@@ -10,10 +12,23 @@ from app.domain.schemas import HealthStatus
 
 router = APIRouter(tags=["system"])
 
+_STARTED_AT = time.monotonic()
+
+
+@router.get("/health/live", include_in_schema=False)
+def liveness() -> dict[str, object]:
+    """Sinal de vida barato: não toca banco nem storage.
+
+    Existe para o keep-alive (cron externo ou GitHub Actions) e para o health
+    check do Render: um ping a cada 10 min não deve gastar conexão com o
+    Supabase nem derrubar a instância quando o banco está lento.
+    """
+    return {"status": "ok", "uptime_s": round(time.monotonic() - _STARTED_AT, 1)}
+
 
 @router.get("/health", response_model=HealthStatus, include_in_schema=False)
 def health(request: Request, response: Response) -> HealthStatus:
-    """Verifica a app e a dependência de persistência (usado no Docker/compose)."""
+    """Readiness: verifica a app e a dependência de persistência (ver compose)."""
     settings = request.app.state.settings
     database_ok = request.app.state.repository.ping()
 
