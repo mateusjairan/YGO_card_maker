@@ -7,6 +7,9 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEV_SECRET_KEY = "dev-secret-change-me-please-with-32-bytes-min"
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
+
 
 class Settings(BaseSettings):
     """Configuração lida de variáveis de ambiente / arquivo .env."""
@@ -41,7 +44,7 @@ class Settings(BaseSettings):
     supabase_bucket: str = "card-images"
 
     # --- regras de negócio ---------------------------------------------------
-    secret_key: str = "dev-secret-change-me-please-with-32-bytes-min"
+    secret_key: str = DEV_SECRET_KEY
     access_token_ttl_minutes: int = 60 * 24 * 7
     max_uploads_per_user: int = 5
     image_output_px: int = 1024
@@ -67,6 +70,36 @@ class Settings(BaseSettings):
             return
         Path(self.sqlite_path).parent.mkdir(parents=True, exist_ok=True)
         Path(self.upload_dir).mkdir(parents=True, exist_ok=True)
+
+    def production_warnings(self) -> list[str]:
+        """Configurações que quebram ou enfraquecem o deploy em produção.
+
+        O `create_app` loga cada item como WARNING — o Render mostra no log do
+        deploy, e é o jeito mais rápido de perceber que uma variável do
+        `render.yaml` não foi preenchida (URLs locais, segredo de dev, CORS).
+        """
+        if self.app_env.lower() != "production":
+            return []
+
+        problems: list[str] = []
+        if self.secret_key == DEV_SECRET_KEY:
+            problems.append("SECRET_KEY com o valor de desenvolvimento: os JWT podem ser forjados.")
+
+        for name, value in (
+            ("PUBLIC_BASE_URL", self.public_base_url),
+            ("FRONTEND_BASE_URL", self.frontend_base_url),
+        ):
+            if any(host in value for host in LOCAL_HOSTS):
+                problems.append(
+                    f"{name} aponta para {value}: links e metadados Open Graph sairão errados."
+                )
+
+        if any(host in origin for origin in self.cors_origin_list for host in LOCAL_HOSTS):
+            problems.append(
+                "CORS_ORIGINS ainda tem origem local: o front de produção seria bloqueado."
+            )
+
+        return problems
 
 
 @lru_cache
