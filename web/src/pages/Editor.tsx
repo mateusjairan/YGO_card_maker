@@ -381,7 +381,7 @@ export function EditorPage() {
                 className="input"
                 value={draft.name}
                 maxLength={60}
-                placeholder="Ex.: Julia, Dama de Köln"
+                placeholder="Ex.: Mago Negro"
                 onChange={(event) => update({ name: event.target.value })}
               />
             </Field>
@@ -392,7 +392,7 @@ export function EditorPage() {
                   className="input"
                   value={draft.archetype ?? ''}
                   maxLength={40}
-                  placeholder='Ex.: "Guardiões de Köln"'
+                  placeholder='Ex.: "Magia Negra"'
                   onChange={(event) => update({ archetype: event.target.value })}
                 />
               </Field>

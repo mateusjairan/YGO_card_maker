@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useSession } from '../lib/session'
-import { DEMO_CARD } from '../lib/demo'
+import { DEMO_CARD, DEMO_CREDIT } from '../lib/demo'
 import type { CardRecord } from '../types'
 import { CardScaler } from '../components/CardScaler'
 import { YgoCard } from '../components/YgoCard'
@@ -83,6 +83,18 @@ export function HomePage() {
           <CardScaler maxWidth={460}>
             <YgoCard card={DEMO_CARD} />
           </CardScaler>
+          {DEMO_CREDIT && (
+            <p className="hero__credit">
+              Arte:{' '}
+              {DEMO_CREDIT.url ? (
+                <a href={DEMO_CREDIT.url} target="_blank" rel="noreferrer noopener">
+                  {DEMO_CREDIT.label}
+                </a>
+              ) : (
+                DEMO_CREDIT.label
+              )}
+            </p>
+          )}
         </div>
       </section>
 
