@@ -127,7 +127,7 @@ link de compartilhamento funciona igual em desenvolvimento e em produção (mesm
 ## Como testar
 
 ```bash
-# Backend: 93 testes, cobertura obrigatória de 80% (atingido: 92,7%)
+# Backend: 100 testes, cobertura obrigatória de 80% (atingido: 93,5%)
 pytest
 
 # Auditoria da entrega (estrutura, CI, OpenAPI, migrations, segredos, TODO)
@@ -452,7 +452,7 @@ Fluxo: `feature/*` → `dev` → `tests` (testes do que entrou) → `main` → `
 | Critério | Evidência |
 | --- | --- |
 | **M1** — funciona, código e design | `docker compose up` sobe tudo; Repository Pattern justificado no ADR; SOLID (domínio isolado, injeção em `main.py`); interface autoral |
-| **M2** — testes e CI | `pytest` (93 testes, 92,7% ≥ 80%), testes de integração por fluxo (auth, cartas, upload, cota), ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
+| **M2** — testes e CI | `pytest` (100 testes, 93,5% ≥ 80%), testes de integração por fluxo (auth, cartas, upload, cota), ESLint + `tsc`, [CI verde](https://github.com/mateusjairan/YGO_card_maker/actions/workflows/ci.yml) ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) |
 | **M3** — ambientes, segredos, observabilidade | `.env.example`, `SECRET_KEY` e service role só no servidor, logs JSON, `/metrics`, SLO declarado |
 | **M4** — arquitetura, documentação, desempenho | [ADR 0001](docs/adr/0001-arquitetura-em-camadas.md) e [ADR 0002](docs/adr/0002-autenticacao.md), [OpenAPI](docs/openapi.yaml) validado no CI, [k6 + p95](docs/desempenho.md), README |
 
