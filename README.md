@@ -248,6 +248,27 @@ Camadas: `.ygo-card__foil` (padrão da raridade), `.ygo-card__holo` (brilho na a
 
 ![Quatro raridades](docs/img/rarities.png)
 
+### Arte de exemplo e créditos
+
+O repositório inclui uma ilustração **original** para a carta de exemplo
+(`web/public/demo-mago-negro.png`), criada para este projeto — sem material oficial.
+
+Para usar outra arte **só no seu ambiente** (sem versionar), salve o arquivo em
+`web/public/local-*.png` e crie `web/.env.local`:
+
+```env
+VITE_DEMO_ART=/local-mago.png
+VITE_DEMO_CREDIT=Gena97 (DeviantArt)
+VITE_DEMO_CREDIT_URL=https://www.deviantart.com/gena97/art/Dark-Magician-%5BArtwork-8%5D%5BManga-Artwork%5D-909684587
+```
+
+A home passa a mostrar o crédito logo abaixo da carta (*Arte: Gena97*, com link para a obra).
+
+- Arte citada: **“Dark Magician [Artwork 8][Manga Artwork]” by Gena97** (DeviantArt) — todos os
+  direitos do artista; ela **não** é redistribuída neste repositório.
+- **Yu-Gi-Oh!** e **Mago Negro** são marcas da Konami/Studio Dice; este projeto é acadêmico.
+- `web/public/local-*` e `web/.env.local` estão no `.gitignore` justamente por isso.
+
 ## Arquitetura
 
 ```mermaid
