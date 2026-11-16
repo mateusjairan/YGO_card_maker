@@ -77,9 +77,10 @@ curl -s https://SEU-SERVICO.onrender.com/health
 curl -s https://SEU-SERVICO.onrender.com/docs | head -c 80   # Swagger
 ```
 
-> **Cold start:** no plano free o serviço dorme após ~15 min. A primeira requisição leva ~30–50 s.
-> Para a apresentação, abra `/health` 2 minutos antes; ou use um ping de 10 min
-> (cron-job.org / GitHub Actions) ou o plano Starter.
+> **Cold start:** no plano free o serviço hiberna após ~15 min sem tráfego. A primeira requisição
+> leva ~30–50 s. Para eliminar (Starter) ou disfarçar isso (keep-alive gratuito + front resiliente),
+> veja a seção [5](#5-evitar-o-cold-start-api-hibernando). Para uma apresentação, abra `/health`
+> 2 minutos antes.
 
 ## 3. Front no Cloudflare Pages (~10 min)
 
@@ -122,19 +123,70 @@ No navegador, com o site do Pages:
 4. copiar o link `/c/{slug}` e abrir no WhatsApp/Discord — a prévia deve mostrar a arte;
 5. testar no celular (390 px) e conferir “Minhas cartas”.
 
-## 5. Operação
+## 5. Evitar o cold start (API hibernando)
+
+No plano free o Render **hiberna a instância após ~15 min sem tráfego**. A próxima requisição
+espera o container subir: neste projeto (imagem Python + FastAPI) são ~30–50 s. Há duas frentes:
+não deixar dormir e tornar o sono indolor para quem usa o site.
+
+### 5.1 Opções
+
+| Opção | Custo | Efeito | Quando usar |
+| --- | --- | --- | --- |
+| **Plano Starter** (`plan: starter` no `render.yaml`) | US$ 7/mês | nunca hiberna, zero cold start | apresentação e uso real |
+| **Keep-alive externo** (cron-job.org, UptimeRobot, BetterStack ou GitHub Actions) | grátis | 1 ping a cada 10 min mantém acordado; consome horas das 750 h/mês do free | janela de demo |
+| **Aceitar o sono + front resiliente** (já no código) | grátis | a 1ª visita espera com aviso "Acordando a API" | portfólio de baixo tráfego |
+| **Trocar de host** (Cloud Run, Fly.io, VPS) | grátis–baixo | cold start de 1–3 s ou nenhum | quando o projeto crescer |
+
+### 5.2 Keep-alive (gratuito)
+
+Use **`/health/live`**, não `/health`: `/health/live` responde 200 sem consultar o Supabase, então
+um ping a cada 10 min não gasta conexões do banco nem marca a instância como doente.
+
+- **cron-job.org / UptimeRobot (mais confiável):** monitor HTTP GET em
+  `https://SEU-SERVICO.onrender.com/health/live`, a cada 10 min, timeout de 60 s. O Render
+  hiberna com 15 min, então 10 min absorve o atraso do agendador.
+- **GitHub Actions:** o workflow [`.github/workflows/keepalive.yml`](../.github/workflows/keepalive.yml)
+  já faz isso a cada 10 min (06h–24h de Brasília). Configure a variável de repositório
+  `API_BASE_URL` (Settings → Secrets and variables → Actions → Variables) e rode uma vez com
+  *Run workflow*. Limites: o cron do GitHub pode atrasar alguns minutos, só roda no branch
+  padrão (`main`) e, em repositório **privado**, consome minutos do plano free.
+- **Do seu PC (Agendador de Tarefas do Windows):** a cada 10 min,
+  `node scripts/keepalive.mjs https://SEU-SERVICO.onrender.com`.
+
+Orçamento do free: **750 h de instância por mês**. Acordado 24/7 são 720–744 h/mês — cabe, mas
+sem margem para deploys extras ou um segundo serviço. A janela padrão do workflow (18 h/dia)
+gasta ~540 h/mês; para 24/7 troque o `cron` do workflow por `'*/10 * * * *'`.
+
+Se a API hibernar mesmo com keep-alive, confira: URL correta, workflow/monitor ativo, resposta 200
+e se o serviço não está recebendo deploy (todo deploy reinicia a instância).
+
+### 5.3 Sono indolor (já implementado)
+
+- **`GET /health/live`** — liveness barato (uptime em segundos, sem I/O). `/health` continua sendo
+  a readiness que checa o Supabase. O `render.yaml` usa `/health/live` como health check: se o
+  banco oscilar, o Render não reinicia a API por causa disso.
+- **Front (`web/src/lib`)** — ao abrir o app, `api.warmup()` pinga `/health/live`; se demorar
+  mais de 1,5 s aparece o aviso "Acordando a API (plano free do Render)". As requisições usam
+  timeout de 75 s (cobre o cold start) e GET ganha uma 2ª tentativa em 502/503/504. Erro de
+  rede/timeout **não desloga** o usuário — só 401 faz isso, então o token sobrevive ao sono da API.
+- **Proxy (`workers/proxy.js` e `_redirects`)** — o Worker repete GET em 502/503/504 após 2 s e,
+  se ainda falhar, `/api/*` responde `503` com `{"code":"api_waking"}` e uma mensagem legível em
+  vez de um 502 vazio.
+
+## 6. Operação
 
 - **Logs**: Render → Logs (JSON, `request_completed` com `status` e `duration_ms`). Filtre por
   `"level": "ERROR"`.
 - **Métricas**: `https://SEU-SERVICO.onrender.com/metrics` (Prometheus). Grafana Cloud free ou
   VictoriaMetrics free fazem o scrape.
-- **Uptime**: BetterStack/cron-job batendo em `/health` a cada 5–10 min — serve também de
-  keep-alive contra o cold start.
+- **Uptime**: BetterStack/cron-job batendo em `/health/live` a cada 5–10 min — é o mesmo monitor
+  que segura o cold start (seção [5](#5-evitar-o-cold-start-api-hibernando)).
 - **Rollback**: Render → Deploys → *Rollback* para o deploy anterior. As migrations são aditivas,
   então voltar a API não exige voltar o banco.
 - **Rotação de segredo**: trocar `SECRET_KEY` invalida os JWT emitidos (todo mundo reloga).
 
-## 6. Alternativa: tudo em Docker numa VPS
+## 7. Alternativa: tudo em Docker numa VPS
 
 ```bash
 git clone https://github.com/mateusjairan/YGO_card_maker && cd YGO_card_maker
@@ -149,7 +201,7 @@ Ponha Caddy/Traefik na frente para TLS. Sem cold start.
 
 | Sintoma | Causa provável | Solução |
 | --- | --- | --- |
-| 502 no Pages | API dormiu / URL errada em `_redirects` | abrir `/health`; conferir a URL |
+| 502 no Pages | API dormiu / URL errada em `_redirects` | abrir `/health/live`; conferir a URL; ver seção 5 |
 | `CORS` bloqueando | `CORS_ORIGINS` sem a URL do Pages | ajustar no Render e redeployar |
 | Imagem some | bucket privado | deixar `card-images` público (leitura) |
 | OG sem imagem | `og:image` relativo | conferir `PUBLIC_BASE_URL` (precisa ser a URL pública da API) |

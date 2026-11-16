@@ -1,16 +1,24 @@
 # Blueprint do Render — sobe a API com o Dockerfile do repositório.
 # Uso: Render Dashboard > New > Blueprint > selecione este repositório.
 # Docs: https://render.com/docs/blueprint-spec
+#
+# Sobre o "sono" do plano free: a instância hiberna após ~15 min sem tráfego e
+# a primeira requisição depois disso paga um cold start de 30–50 s. Mitigações:
+#   1. keep-alive externo batendo em /health/live a cada 10 min (grátis; ver
+#      .github/workflows/keepalive.yml e docs/deploy.md);
+#   2. plano `starter` (US$ 7/mês) — nunca hiberna, opção recomendada para demo;
+#   3. /health/live é usado como health check porque não toca o Supabase.
 services:
   - type: web
     name: ygo-card-maker-api
     runtime: docker
-    plan: free # troque para "starter" se quiser evitar o cold start
+    plan: free # troque para "starter" para eliminar o cold start de vez
     region: oregon # ohio/oregon ficam razoáveis para o Brasil
     branch: prod # deploy automático a partir da branch de produção
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /health
+    # liveness: responde 200 mesmo com o banco instável (readiness fica em /health)
+    healthCheckPath: /health/live
     autoDeploy: true
     envVars:
       - key: APP_ENV
