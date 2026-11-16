@@ -1,25 +1,27 @@
-name: Keep-alive da API
+name: Keep-alive da API (reserva)
 
+# RESERVA. O keep-alive principal é o Cron Trigger do Worker (wrangler.jsonc +
+# handler `scheduled` em workers/proxy.js), que é pontual e publica junto com o
+# front. Este workflow existe como segunda linha de defesa: o cron do GitHub pode
+# atrasar (especialmente no começo da hora) e chega a ser descartado em pico.
+#
 # O plano free do Render hiberna o serviço após ~15 min sem tráfego e a
 # primeira requisição depois disso demora 30–50 s (cold start). Este workflow
 # pinga /health/live a cada 10 min para manter a API acordada.
 #
 # Janela: 09:00–23:59 e 00:00–02:59 UTC = 06h–24h em America/Sao_Paulo (UTC-3).
+# Minutos deslocados do :00/:30 de propósito (pico do GitHub Actions).
 # Isso usa ~18 h/dia de instância (~540 h/mês) e deixa folga nas 750 h/mês
-# gratuitas do Render. Para 24/7 troque o cron por '*/10 * * * *' (720–744 h/mês:
-# cabe no limite, mas sem margem para deploys extras).
+# gratuitas do Render. Para 24/7 troque o cron por '3,13,23,33,43,53 * * * *'.
 #
-# Atenção: cron do GitHub pode atrasar alguns minutos e só roda no branch padrão
-# (main). Para produção séria, use um monitor externo (cron-job.org,
-# UptimeRobot, BetterStack) batendo no mesmo endpoint — é mais pontual e não
-# consome minutos de Actions (relevante se o repositório for privado).
+# Atenção: só roda no branch padrão (main).
 #
 # Ajuste a URL em Settings → Secrets and variables → Actions → Variables:
 #   API_BASE_URL = https://sua-api.onrender.com
 
 on:
   schedule:
-    - cron: '*/10 9-23,0-2 * * *'
+    - cron: '3,13,23,33,43,53 9-23,0-2 * * *'
   workflow_dispatch:
 
 permissions:
