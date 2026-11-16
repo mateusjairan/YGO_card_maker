@@ -16,6 +16,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': { target: apiTarget, changeOrigin: true },
+      '/health': { target: apiTarget, changeOrigin: true }, // /health e /health/live
       '/media': { target: apiTarget, changeOrigin: true },
       '/static': { target: apiTarget, changeOrigin: true },
       '^/c/': { target: apiTarget, changeOrigin: true },
@@ -26,6 +27,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: apiTarget, changeOrigin: true },
+      '/health': { target: apiTarget, changeOrigin: true },
       '/media': { target: apiTarget, changeOrigin: true },
       '/static': { target: apiTarget, changeOrigin: true },
       '^/c/': { target: apiTarget, changeOrigin: true },

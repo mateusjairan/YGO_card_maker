@@ -13,6 +13,20 @@ def test_health_ok(client):
     assert body["version"]
 
 
+def test_liveness_nao_depende_do_banco(client, monkeypatch):
+    """O keep-alive precisa responder 200 mesmo com o banco fora."""
+    monkeypatch.setattr(client.app.state.repository, "ping", lambda: False)
+
+    response = client.get("/health/live")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["uptime_s"] >= 0
+    # a readiness continua fiel ao estado do banco
+    assert client.get("/health").status_code == 503
+
+
 def test_metrics_expostas(client):
     client.post(
         "/api/cards",

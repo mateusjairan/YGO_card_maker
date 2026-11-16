@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { User } from '../types'
-import { api } from './api'
+import { api, ApiError } from './api'
 import { clearToken, getToken } from './token'
 
 interface SessionValue {
@@ -36,8 +36,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     try {
       setUser(await api.me())
-    } catch {
-      clearToken()
+    } catch (error) {
+      // Só 401 derruba a sessão: se a API está hibernando (cold start do Render)
+      // o token continua válido e o próximo carregamento restaura o login.
+      if (error instanceof ApiError && error.status === 401) clearToken()
       setUser(null)
     } finally {
       setLoading(false)
