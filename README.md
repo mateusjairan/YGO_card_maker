@@ -132,6 +132,11 @@ python scripts/audit.py
 # E2E da API contra uma API em execução (auth, cota, posse, XSS, CORS)
 node scripts/e2e-api.mjs http://127.0.0.1:8000
 
+# E2E no navegador (15 checagens: login, editor, PNG, mobile, console)
+# Antes, suba um Edge/Chrome com CDP:
+#   msedge --headless=new --remote-debugging-port=9222
+node scripts/e2e-browser.mjs http://localhost:5173 http://127.0.0.1:8000 9222
+
 # Limpa contas/cartas de teste e imagens órfãs do banco local
 python scripts/cleanup-db.py
 
